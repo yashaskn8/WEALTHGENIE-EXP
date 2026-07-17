@@ -8,6 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { generateRecommendations, getEligibleInvestments } from './recommendationEngine';
 import * as api from './services/api';
 import { assertKnownBackendInstrumentTypes, backendToLocalInstrument, localToBackendInstrument } from './utils/instrumentTypeMap';
+import { investmentDatabase } from './investmentDatabase';
 
 // ── Lazy-loaded page components (code-split for faster initial load) ──
 const GoalTracker = lazy(() => import('./components/GoalTracker'));
@@ -103,35 +104,51 @@ const DashboardShell = ({ userProfile, onProfileUpdate }) => {
 
     const totalSavings = Number(userProfile?.monthly_savings || userProfile?.savings) || 0;
 
-    let merged = localRecommendations.map(lr => {
-      const match = (backendRecs.instruments || []).find(bi => {
-        const localId = backendToLocalInstrument(bi.type);
-        return localId === lr.id || bi.name === lr.name || bi.type === lr.id;
-      });
-      if (match) {
-        const idx = backendRecs.instruments.findIndex(bi => bi.type === match.type);
-        const backendWeight = match.allocationWeight !== undefined 
-          ? match.allocationWeight 
-          : (idx === 0 ? 0.5 : idx === 1 ? 0.3 : 0.2);
+    // Treat backend response as the single source of truth for order, ranking, and allocations.
+    // Map over backend instruments directly to preserve their exact order and allocations.
+    let merged = (backendRecs.instruments || []).map((bi, idx) => {
+      const localId = backendToLocalInstrument(bi.type);
+      
+      // Look up full display attributes from the investment database catalog
+      const dbMatch = investmentDatabase.find(inv => 
+        (bi.instrumentId && inv.id === bi.instrumentId) || 
+        (localId && inv.id === localId) || 
+        (bi.name && inv.name && inv.name.toLowerCase() === bi.name.toLowerCase())
+      );
+
+      const backendWeight = bi.allocationWeight !== undefined 
+        ? bi.allocationWeight 
+        : (idx === 0 ? 0.40 : idx === 1 ? 0.30 : idx === 2 ? 0.15 : idx === 3 ? 0.10 : 0.05);
+
+      const allocation = Math.round((backendWeight * totalSavings) / 100) * 100;
+
+      return {
+        ...dbMatch,
+        // Enriched presentation metadata from the catalog
+        id: bi.instrumentId || dbMatch?.id || localId,
+        name: bi.name || dbMatch?.name || bi.type,
+        abbr: dbMatch?.abbr || bi.type,
+        color: dbMatch?.color || '#38bdf8',
+        desc: dbMatch?.desc || '',
+        category: dbMatch?.category || dbMatch?.cat || 'Other',
+        cat: dbMatch?.cat || dbMatch?.category || 'Other',
+        assetClass: dbMatch?.assetClass || 'Other',
+        riskLabel: bi.riskLevel || dbMatch?.riskLabel || 'Medium',
+        risk: dbMatch?.risk || 3,
+        lockIn: bi.lockIn !== undefined ? bi.lockIn : (dbMatch?.lockIn || 0),
+        lock_in_years: bi.lockIn !== undefined ? bi.lockIn : (dbMatch?.lockIn || 0),
+        goalTags: dbMatch?.goalTags || [],
         
-        const allocation = Math.round((backendWeight * totalSavings) / 100) * 100;
-        
-        return {
-          ...lr,
-          monthly_allocation: allocation,
-          postTaxReturn: match.postTaxReturn || match.effectiveYield || lr.postTaxReturn,
-          nominalReturn: match.nominalReturn || lr.nominalReturn || lr.rate,
-          ml_confidence: backendRecs?.confidence_scores?.[match.type] ?? lr.ml_confidence,
-          advisory_text: backendRecs.advisory_text,
-          _source: 'backend',
-        };
-      } else {
-        return {
-          ...lr,
-          monthly_allocation: 0,
-          _source: 'local_inactive'
-        };
-      }
+        // Dynamic values from backend response
+        monthly_allocation: allocation,
+        postTaxReturn: bi.postTaxReturn !== undefined ? bi.postTaxReturn : (bi.effectiveYield !== undefined ? bi.effectiveYield : (dbMatch?.postTaxReturn || dbMatch?.rate || 7.0)),
+        nominalReturn: bi.nominalReturn !== undefined ? bi.nominalReturn : (dbMatch?.expectedReturn || dbMatch?.rate || 7.0),
+        rate: bi.nominalReturn !== undefined ? bi.nominalReturn : (dbMatch?.rate || dbMatch?.expectedReturn || 7.0),
+        expectedReturn: bi.nominalReturn !== undefined ? bi.nominalReturn : (dbMatch?.expectedReturn || dbMatch?.rate || 7.0),
+        ml_confidence: backendRecs?.confidence_scores?.[bi.type] ?? 0,
+        advisory_text: backendRecs.advisory_text,
+        _source: 'backend',
+      };
     });
 
     const activeMerged = merged.filter(r => r.monthly_allocation > 0);

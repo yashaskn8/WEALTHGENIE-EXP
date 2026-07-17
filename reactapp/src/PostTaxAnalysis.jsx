@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import JargonTooltip from './components/JargonTooltip';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
-import { Scale, Percent, AlertCircle, TrendingUp } from 'lucide-react';
+import { Scale, Percent, AlertCircle, TrendingUp, TrendingDown, Info, ShieldCheck, PiggyBank } from 'lucide-react';
 import { computeRealReturn } from './utils/postTaxEngine';
 import { formatINR, getMarginalRate, computePostTaxReturn } from './recommendationEngine';
 import './components/TaxScreen.css';
@@ -104,29 +104,28 @@ const PostTaxAnalysis = ({ profile, recommendations }) => {
 
     return recommendations.map(inv => {
       const totalInvested = (inv.monthly_allocation || 0) * horizon * 12;
-
-      // Calculate post-tax rate
       const profileWithRegime = { ...profile, taxRegime: regime };
       const ptResult = computePostTaxReturn(inv, annualSavings, annualIncome, profileWithRegime);
-      const nominalReturn = inv.expected_return_max || inv.rate || 0;
-      const postTaxReturn = ptResult.postTaxRate || nominalReturn;
+      const nominalReturn = inv.nominalReturn !== undefined ? inv.nominalReturn : (inv.expectedReturn || inv.rate || 0);
+      // Always prefer the dynamically computed post-tax rate so this screen
+      // reacts in real-time when the user toggles tax regime or income bracket.
+      // inv.postTaxReturn is a static snapshot from recommendation time — not suitable here.
+      const postTaxReturn = ptResult.postTaxRate !== undefined && ptResult.postTaxRate !== null
+        ? ptResult.postTaxRate
+        : (inv.postTaxReturn !== undefined ? inv.postTaxReturn : nominalReturn);
       const realReturn = computeRealReturn(postTaxReturn, inflationRate / 100);
 
-      // Compute FVs using Step-Up SIP
       const nominalFV = calcStepUpFV(inv.monthly_allocation, nominalReturn, horizon);
       const postTaxFV = calcStepUpFV(inv.monthly_allocation, postTaxReturn, horizon);
       const postTaxGain = Math.max(0, postTaxFV - totalInvested);
 
-      // Calculate precise Tax Drag (Wealth eroded in Rupees & CAGR Drag)
       const taxDragWealth = Math.max(0, nominalFV - postTaxFV);
       const taxDragCAGR = Math.max(0, nominalReturn - postTaxReturn);
 
-      // Instrument-specific effective tax rate
       const effectiveTaxPct = nominalReturn > 0
         ? Math.max(0, ((nominalReturn - postTaxReturn) / nominalReturn) * 100)
         : 0;
 
-      // Determine tax type label from instrument
       const taxTypeLabels = {
         eee: 'Fully Tax-Free (EEE)', slab: 'Taxed at Slab Rate',
         ltcg: 'Equity Tax (12.5% LTCG)', elss: 'ELSS Tax-Saver (12.5% LTCG)',
@@ -146,12 +145,10 @@ const PostTaxAnalysis = ({ profile, recommendations }) => {
     });
   }, [recommendations, profile, regime]);
 
-  // Aggregate Tax Drag stats
   const totalTaxDragRupees = useMemo(() => {
     return postTaxData.reduce((sum, d) => sum + d.taxDetails.taxDragWealth, 0);
   }, [postTaxData]);
 
-  // Calculations for beginner highlight card
   const bottomLineMetrics = useMemo(() => {
     if (!profile || !postTaxData || postTaxData.length === 0) return { blendedNominal: 0, blendedReal: 0, keptAmount: 0 };
     const totalSavings = Number(profile.monthly_savings) || 12000;
@@ -162,6 +159,59 @@ const PostTaxAnalysis = ({ profile, recommendations }) => {
     return { blendedNominal, blendedReal, keptAmount };
   }, [postTaxData, profile?.monthly_savings]);
 
+  const efficiencyPercent = useMemo(() => {
+    return Math.max(0, Math.min(100, (bottomLineMetrics.keptAmount / 10)));
+  }, [bottomLineMetrics.keptAmount]);
+
+  const strokeDashoffset = useMemo(() => {
+    return 251.2 - (251.2 * efficiencyPercent) / 100;
+  }, [efficiencyPercent]);
+
+  const actionableInsights = useMemo(() => {
+    const list = [];
+    let hasHighSlabDebt = false;
+    let hasGoldPhysical = false;
+
+    postTaxData.forEach(d => {
+      if (d.taxType === 'slab' && d.id === 'fd') hasHighSlabDebt = true;
+      if (d.id === 'gold_physical') hasGoldPhysical = true;
+    });
+
+    if (marginalRate >= 0.20 && hasHighSlabDebt) {
+      list.push({
+        title: 'Optimize Safe Assets',
+        body: 'You are in a high tax bracket. Consider routing safe allocations into Arbitrage Funds or PPF instead of bank Fixed Deposits to shield interest from high slab taxes.',
+        icon: <ShieldCheck size={18} color="#38bdf8" />,
+      });
+    }
+
+    if (marginalRate >= 0.10 && !postTaxData.some(d => d.id === 'nps')) {
+      list.push({
+        title: 'NPS Tax Break',
+        body: 'Claim an additional ₹50,000 deduction under Section 80CCD(1B) by investing in National Pension System (NPS). This growth is largely tax-exempt.',
+        icon: <PiggyBank size={18} color="#a78bfa" />,
+      });
+    }
+
+    if (hasGoldPhysical) {
+      list.push({
+        title: 'Switch to SGBs',
+        body: 'Physical Gold and Gold ETFs attract capital gains tax. Sovereign Gold Bonds (SGB) offer 2.5% annual interest and are 100% tax-free at maturity.',
+        icon: <Scale size={18} color="#f59e0b" />,
+      });
+    }
+
+    if (list.length === 0) {
+      list.push({
+        title: 'Sustain Allocation',
+        body: 'Your portfolio is tax-efficient. Continue systematic contributions to maintain current compounding returns.',
+        icon: <ShieldCheck size={18} color="#34d399" />,
+      });
+    }
+
+    return list;
+  }, [postTaxData, marginalRate]);
+
   if (!profile || !recommendations || !Array.isArray(recommendations) || recommendations.length === 0) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px', color: '#94a3b8', fontSize: '0.95rem' }}>
@@ -170,201 +220,329 @@ const PostTaxAnalysis = ({ profile, recommendations }) => {
     );
   }
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+        delayChildren: 0.05
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 120, damping: 18 } }
+  };
+
   return (
-    <div className="tax-page" style={{ maxWidth: 1200, margin: '0 auto', padding: '36px 20px 80px' }}>
+    <motion.div 
+      className="tax-page" 
+      style={{ maxWidth: 1400, margin: '0 auto', padding: '32px 16px 80px', position: 'relative' }}
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+    >
+      <div className="tax-bg-orb tax-bg-orb--1" />
+      <div className="tax-bg-orb tax-bg-orb--2" />
+
       <motion.header 
-        style={{ marginBottom: 40, textAlgin: 'center' }}
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
+        style={{ marginBottom: 36, textAlign: 'left', paddingLeft: 12 }}
+        variants={itemVariants}
       >
-        <div className="tax-page-badge" style={{ backgroundColor: 'rgba(139, 92, 246, 0.05)', border: '1px solid rgba(139, 92, 246, 0.1)', color: '#a78bfa', margin: '0 auto' }}>
-          <Scale size={11} style={{ marginRight: 4, verticalAlign: '-1px' }} />
-          Actual Returns
+        <div className="tax-page-badge" style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.2)', color: '#c084fc', padding: '5px 14px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase' }}>
+          <Scale size={12} style={{ marginRight: 6 }} />
+          Tax & Inflation Engine
         </div>
-        <h1 className="tax-page-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: 14 }}>
-          Actual Returns (After Tax & Inflation)
+        <h1 className="tax-page-title" style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: 14, fontSize: '2.4rem', fontWeight: 900, background: 'linear-gradient(135deg, #ffffff 0%, #a855f7 60%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-1.2px' }}>
+          Actual Returns Summary
         </h1>
-        <p className="tax-page-subtitle" style={{ textAlign: 'center' }}>
-          See the real growth of your savings once capital gains taxes, slab taxes, and price inflation are accounted for.
+        <p className="tax-page-subtitle" style={{ textAlign: 'left', fontSize: '0.92rem', color: '#64748b', marginTop: 8, maxWidth: '640px', margin: '8px 0 0', lineHeight: '1.5' }}>
+          Visualizing your true growth rates and profit retention after subtracting Indian tax laws and the eroding effect of inflation.
         </p>
-        <div className="tax-header-divider" />
       </motion.header>
 
-      {/* Control Panel HUD */}
-      <motion.div 
-        className="tax-controls" 
-        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'center', marginBottom: 32 }}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        {/* Tax regime display */}
-        <div className="tax-control-card">
-          <div className="tax-control-card-header">
-            <div className="tax-control-card-icon" style={{ background: 'rgba(56,189,248,0.1)', color: '#38bdf8' }}><Percent size={20} /></div>
-            <label>Selected Tax System</label>
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f8fafc', marginTop: 8 }}>
-            {regime === 'new' ? 'New Tax Regime' : 'Old Tax Regime'}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>From your financial profile</span>
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '28px' }} className="tax-dashboard-responsive-grid">
+        <style>{`
+          @media (min-width: 1025px) {
+            .tax-dashboard-responsive-grid {
+              grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) !important;
+            }
+          }
+          .glass-panel {
+            background: linear-gradient(165deg, rgba(10, 18, 36, 0.45) 0%, rgba(5, 9, 20, 0.6) 100%) !important;
+            backdrop-filter: blur(24px) saturate(180%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+          }
+          .circle-progress-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 120px;
+            height: 120px;
+          }
+          .circle-progress-center {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+          }
+          .insight-list-item {
+            display: flex;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          }
+          .insight-list-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.06);
+            transform: translateX(3px);
+          }
+        `}</style>
 
-        {/* Marginal bracket stats display */}
-        <div className="tax-control-card" style={{ background: 'linear-gradient(155deg, rgba(15,23,42,0.85) 0%, rgba(7,11,20,0.6) 100%)' }}>
-          <div className="tax-control-card-header">
-            <div className="tax-control-card-icon" style={{ background: 'rgba(139,92,246,0.1)', color: '#a78bfa' }}><Percent size={20} /></div>
-            <label>Your Tax Bracket (Slab Rate)</label>
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f8fafc', marginTop: 8 }}>
-            {(marginalRate * 100).toFixed(0)}% <span style={{ fontSize: '0.88rem', color: '#64748b', fontWeight: 600 }}>Highest Slab</span>
-          </div>
-          <span style={{ fontSize: '0.75rem', color: '#a78bfa', fontWeight: 700 }}>
-            Overall Average Tax Rate: {(effectiveRate * 100).toFixed(1)}%
-          </span>
-        </div>
-      </motion.div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+          <motion.div 
+            className="glass-panel" 
+            variants={itemVariants}
+            style={{ padding: '24px 28px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', margin: 0 }}>
+                  Return Drag Comparison
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 0 0' }}>
+                  Comparing the direct impact of taxation and standard 6.0% inflation on nominal returns.
+                </p>
+              </div>
+            </div>
 
-      {/* Beginner Highlight Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={{
-          background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%)',
-          border: '1px solid rgba(56, 189, 248, 0.25)',
-          borderRadius: 24,
-          padding: '24px 32px',
-          marginBottom: 32,
-          textAlign: 'center',
-          backdropFilter: 'blur(20px)'
-        }}
-      >
-        <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>What You Actually Keep</h3>
-        <p style={{ margin: '0 0 16px 0', fontSize: '1.05rem', color: '#e2e8f0', lineHeight: 1.5 }}>
-          For every <strong style={{ color: '#38bdf8' }}>₹1,000</strong> of investment profits, you keep about <strong style={{ color: '#10b981', fontSize: '1.2rem', textShadow: '0 0 10px rgba(16,185,129,0.3)' }}>₹{bottomLineMetrics.keptAmount}</strong> after accounting for capital gains tax and {inflationRate}% price inflation.
-        </p>
-      </motion.div>
+            <div style={{ height: 350 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={postTaxData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="colorNominal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#38bdf8" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#0284c7" stopOpacity={0.7}/>
+                    </linearGradient>
+                    <linearGradient id="colorPostTax" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#c084fc" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.7}/>
+                    </linearGradient>
+                    <linearGradient id="colorReal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#34d399" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#059669" stopOpacity={0.7}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(255,255,255,0.02)' }} 
+                    contentStyle={{ background: 'rgba(8, 14, 28, 0.95)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 12, color: '#f8fafc', fontSize: '0.85rem' }} 
+                  />
+                  <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8' }}/>
+                  <Bar dataKey="nominalReturn" name="Before Tax" fill="url(#colorNominal)" radius={[4,4,0,0]} barSize={20} />
+                  <Bar dataKey="postTaxReturn" name="After-Tax" fill="url(#colorPostTax)" radius={[4,4,0,0]} barSize={20} />
+                  <Bar dataKey="realReturn" name="Real Return" fill="url(#colorReal)" radius={[4,4,0,0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </motion.div>
 
-      {/* Cumulative Wealth Erosion Impact Banner */}
-      {totalTaxDragRupees > 0 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          style={{
-            background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.12) 0%, rgba(15, 23, 42, 0.7) 100%)',
-            border: '1px solid rgba(244, 63, 94, 0.25)',
-            borderRadius: 20, padding: 24, marginBottom: 36, display: 'flex', gap: 16, alignItems: 'flex-start'
-          }}
-        >
-          <AlertCircle size={28} color="#f43f5e" style={{ flexShrink: 0, marginTop: 2 }} />
-          <div>
-            <h4 style={{ color: '#fff', fontSize: '1.05rem', fontWeight: 800, margin: '0 0 6px 0' }}>Tax Impact Summary</h4>
-            <p style={{ color: '#cbd5e1', fontSize: '0.88rem', margin: 0, lineHeight: 1.5 }}>
-              Taxes will reduce your final savings by roughly <strong>{formatINR(totalTaxDragRupees)}</strong> over your investment timeline. Using tax-free options (like PPF or NPS) can help protect your returns.
-            </p>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Visual Chart Panel */}
-      <motion.div 
-        className="tax-chart-wrapper" 
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        style={{ padding: 28, borderRadius: 20, background: 'rgba(15, 23, 42, 0.4)', border: '1px solid rgba(255, 255, 255, 0.05)', marginBottom: 32 }}
-      >
-        <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-          Before-Tax Growth vs After-Tax Growth vs Real Growth
-        </h3>
-        <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '4px 0 20px 0' }}>
-          Compare how taxes and inflation reduce your actual growth rate.
-        </p>
-
-        <div style={{ height: 400 }} className="tax-bar-chart-glow">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={postTaxData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-              <defs>
-                <linearGradient id="colorNominal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#0ea5e9" stopOpacity={1}/>
-                  <stop offset="100%" stopColor="#0369a1" stopOpacity={0.8}/>
-                </linearGradient>
-                <linearGradient id="colorPostTax" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#a855f7" stopOpacity={1}/>
-                  <stop offset="100%" stopColor="#7e22ce" stopOpacity={0.8}/>
-                </linearGradient>
-                <linearGradient id="colorReal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity={1}/>
-                  <stop offset="100%" stopColor="#047857" stopOpacity={0.8}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 500 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 500 }} tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} />
-              <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(12px)', border: '1px solid rgba(14, 165, 233, 0.3)', borderRadius: 12, color: '#f8fafc', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }} />
-              <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '13px', paddingBottom: '16px', fontWeight: 600, color: '#94a3b8' }}/>
-              <Bar dataKey="nominalReturn" name="Estimated Return (Before Tax)" fill="url(#colorNominal)" radius={[6,6,0,0]} barSize={28} />
-              <Bar dataKey="postTaxReturn" name="After-Tax Return (What You Keep)" fill="url(#colorPostTax)" radius={[6,6,0,0]} barSize={28} />
-              <Bar dataKey="realReturn" name="Real Return (Adjusted for Inflation & Tax)" fill="url(#colorReal)" radius={[6,6,0,0]} barSize={28} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </motion.div>
-
-      {/* Simple Table */}
-      <motion.div 
-        className="tax-chart-wrapper" 
-        style={{ padding: '0', overflow: 'hidden', borderRadius: 20, background: 'rgba(15, 23, 42, 0.4)', border: '1px solid rgba(255, 255, 255, 0.05)' }}
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div style={{ padding: '24px 32px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <h3 style={{ margin: 0, fontWeight: 700, fontSize: '1.25rem' }}>Detailed Return Rates</h3>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="comparison-table" style={{ width: '100%', margin: 0, borderCollapse: 'collapse' }}>
-            <thead style={{ background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(10px)' }}>
-              <tr>
-                <th style={{ padding: '16px 24px', textAlign: 'left', color: '#94a3b8', fontWeight: 500, fontSize: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Investment Name</th>
-                <th style={{ padding: '16px 24px', textAlign: 'left', color: '#94a3b8', fontWeight: 500, fontSize: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Tax Category</th>
-                <th style={{ padding: '16px 24px', textAlign: 'left', color: '#94a3b8', fontWeight: 500, fontSize: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Expected Return (Nominal)</th>
-                <th style={{ padding: '16px 24px', textAlign: 'left', color: '#94a3b8', fontWeight: 500, fontSize: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Growth Rate After Tax</th>
-                <th style={{ padding: '16px 24px', textAlign: 'left', color: '#94a3b8', fontWeight: 500, fontSize: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Real Growth (After Inflation)</th>
-                <th style={{ padding: '16px 24px', textAlign: 'right', color: '#94a3b8', fontWeight: 500, fontSize: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>Final Savings Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {postTaxData.map((data, i) => {
-                return (
-                  <tr 
-                    key={i} 
-                    style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-                  >
-                    <td style={{ padding: '16px 24px', fontWeight: 600 }}>
-                      {data.name} 
-                      <br/>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal' }}>{data.category}</span>
-                    </td>
-                    <td style={{ padding: '16px 24px', color: '#cbd5e1' }}>{data.taxDetails.taxType}</td>
-                    <td style={{ padding: '16px 24px', color: '#cbd5e1' }}>{data.nominalReturn.toFixed(1)}%</td>
-                    <td style={{ padding: '16px 24px', color: '#a855f7', fontWeight: 700 }}>{data.postTaxReturn.toFixed(1)}%</td>
-                    <td style={{ padding: '16px 24px', color: data.realReturn > 0 ? '#10b981' : '#ef4444', fontWeight: 700 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {data.realReturn > 0 ? <TrendingUp size={16} /> : null}
-                        {data.realReturn > 0 ? '+' : ''}{data.realReturn.toFixed(1)}%
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px 24px', textAlign: 'right', fontWeight: 800, color: '#f8fafc' }}>
-                      {formatINR(data.wealthGained)}
-                    </td>
+          <motion.div 
+            className="glass-panel" 
+            variants={itemVariants}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>Detailed Rates</h3>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8', backgroundColor: 'rgba(255,255,255,0.03)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                Inflation: {inflationRate}%
+              </span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="comparison-table" style={{ width: '100%', margin: 0, borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                <thead style={{ background: 'rgba(10, 18, 36, 0.5)' }}>
+                  <tr>
+                    <th style={{ padding: '14px 20px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Asset Name</th>
+                    <th style={{ padding: '14px 20px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tax Type</th>
+                    <th style={{ padding: '14px 20px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Nominal</th>
+                    <th style={{ padding: '14px 20px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Post-Tax</th>
+                    <th style={{ padding: '14px 20px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Real (Net)</th>
+                    <th style={{ padding: '14px 20px', textAlign: 'right', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Projected Savings</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {postTaxData.map((data, i) => {
+                    return (
+                      <motion.tr 
+                        key={i} 
+                        whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.015)' }}
+                        style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background-color 0.2s ease' }}
+                      >
+                        <td style={{ padding: '16px 20px', fontWeight: 700, color: '#f8fafc' }}>
+                          {data.name} 
+                          <span style={{ fontSize: '0.72rem', color: '#475569', fontWeight: 'normal', display: 'block', marginTop: 3 }}>{data.category}</span>
+                        </td>
+                        <td style={{ padding: '16px 20px', color: '#cbd5e1' }}>
+                          <span style={{ display: 'inline-block', backgroundColor: data.taxType === 'eee' ? 'rgba(52, 211, 153, 0.06)' : 'rgba(255, 255, 255, 0.03)', color: data.taxType === 'eee' ? '#34d399' : '#cbd5e1', padding: '3px 8px', borderRadius: '5px', fontSize: '0.75rem', fontWeight: 500, border: data.taxType === 'eee' ? '1px solid rgba(52, 211, 153, 0.1)' : '1px solid rgba(255, 255, 255, 0.04)' }}>
+                            {data.taxDetails.taxType}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px 20px', color: '#94a3b8', fontWeight: 600 }}>{data.nominalReturn.toFixed(1)}%</td>
+                        <td style={{ padding: '16px 20px', color: '#c084fc', fontWeight: 700 }}>{data.postTaxReturn.toFixed(1)}%</td>
+                        <td style={{ padding: '16px 20px', color: data.realReturn > 0 ? '#34d399' : '#fb7185', fontWeight: 700 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {data.realReturn > 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                            {data.realReturn > 0 ? '+' : ''}{data.realReturn.toFixed(1)}%
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px 20px', textAlign: 'right', fontWeight: 800, color: '#38bdf8' }}>
+                          {formatINR(data.wealthGained)}
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
         </div>
-      </motion.div>
-    </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+          <motion.div 
+            className="glass-panel" 
+            variants={itemVariants}
+            style={{ padding: '24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}
+          >
+            <div style={{ background: 'rgba(30, 41, 59, 0.2)', border: '1px solid rgba(255, 255, 255, 0.04)', padding: '14px 16px', borderRadius: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <Percent size={14} color="#38bdf8" /> Regime
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#f8fafc', marginTop: 8, letterSpacing: '-0.3px' }}>
+                {regime === 'new' ? 'New System' : 'Old System'}
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(30, 41, 59, 0.2)', border: '1px solid rgba(255, 255, 255, 0.04)', padding: '14px 16px', borderRadius: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <Percent size={14} color="#c084fc" /> Max Bracket
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#f8fafc', marginTop: 8, letterSpacing: '-0.3px' }}>
+                {(marginalRate * 100).toFixed(0)}%
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            className="glass-panel" 
+            variants={itemVariants}
+            style={{ padding: '28px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+            whileHover={{ scale: 1.01 }}
+          >
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '0.8rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Profit Retention Efficiency
+            </h3>
+            
+            <div className="circle-progress-container">
+              <svg width="110" height="110" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" stroke="rgba(251, 113, 133, 0.12)" strokeWidth="7" fill="transparent" />
+                <circle 
+                  cx="50" 
+                  cy="50" 
+                  r="40" 
+                  stroke="url(#progressGradient)" 
+                  strokeWidth="7" 
+                  fill="transparent" 
+                  strokeDasharray="251.2" 
+                  strokeDashoffset={strokeDashoffset} 
+                  strokeLinecap="round"
+                  transform="rotate(-90 50 50)"
+                />
+                <defs>
+                  <linearGradient id="progressGradient" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#10b981" />
+                    <stop offset="100%" stopColor="#34d399" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="circle-progress-center">
+                <span style={{ fontSize: '1.35rem', fontWeight: 900, color: '#10b981', letterSpacing: '-0.5px' }}>
+                  {efficiencyPercent.toFixed(1)}%
+                </span>
+                <span style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, marginTop: 1 }}>
+                  Retained
+                </span>
+              </div>
+            </div>
+
+            <p style={{ margin: '18px 0 0 0', fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.5, fontWeight: 500 }}>
+              For every <strong style={{ color: '#38bdf8' }}>₹1,000</strong> of profits, you keep <strong style={{ color: '#10b981' }}>₹{bottomLineMetrics.keptAmount}</strong>.
+              The remaining <strong style={{ color: '#fb7185' }}>₹{1000 - bottomLineMetrics.keptAmount}</strong> is eroded by inflation ({inflationRate}%) and tax drag.
+            </p>
+          </motion.div>
+
+          {totalTaxDragRupees > 0 && (
+            <motion.div
+              className="glass-panel"
+              variants={itemVariants}
+              style={{
+                padding: '20px 24px', 
+                borderLeft: '4px solid #fb7185',
+                background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.05) 0%, rgba(15, 23, 42, 0.4) 100%)'
+              }}
+            >
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <AlertCircle size={20} color="#fb7185" style={{ flexShrink: 0, marginTop: 2 }} />
+                <div>
+                  <h4 style={{ color: '#fff', fontSize: '0.92rem', fontWeight: 800, margin: '0 0 4px 0' }}>
+                    Projected Tax Erosion
+                  </h4>
+                  <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: 0, lineHeight: 1.5 }}>
+                    Taxes will reduce your total projected savings by roughly <strong style={{ color: '#fb7185' }}>{formatINR(totalTaxDragRupees)}</strong> over your investment timeline.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          <motion.div 
+            className="glass-panel" 
+            variants={itemVariants}
+            style={{ padding: '24px' }}
+          >
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '0.82rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Info size={14} color="#38bdf8" /> Advisory Actions
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {actionableInsights.map((insight, idx) => (
+                <div key={idx} className="insight-list-item">
+                  <div style={{ marginTop: 2 }}>{insight.icon}</div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
+                      {insight.title}
+                    </h4>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: '#64748b', lineHeight: 1.45 }}>
+                      {insight.body}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </motion.div>
   );
 };
 

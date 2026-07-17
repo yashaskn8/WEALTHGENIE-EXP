@@ -1,19 +1,17 @@
 /**
- * WealthGenie — 110-Instrument Investment Display Catalogue
- * ─────────────────────────────────────────────────────────
- * ARCHITECTURE NOTE — SOURCE OF TRUTH:
- *   The authoritative instrument data lives in MongoDB (seeded via
- *   GET /api/instruments). This static catalogue serves as:
- *     1. Display-layer defaults for instant UI rendering before API data loads
- *     2. UI constants (colors, risk labels, concentration caps, tax info labels)
- *     3. Eligibility rules for the client-side offline fallback engine
+ * WealthGenie — Backend Authoritative Investment Catalog
+ * ──────────────────────────────────────────────────────
+ * ARCHITECTURE NOTE — SINGLE SOURCE OF TRUTH (BACKEND):
+ *   This file is the backend's authoritative investment catalog.
+ *   All backend services (seed scripts, RecommendationPipeline,
+ *   portfolio engine, Monte Carlo) should consume this dataset
+ *   rather than defining duplicate instrument metadata elsewhere.
  *
- *   When the backend API responds, its data OVERRIDES these values.
- *   See App.jsx DashboardShell.useEffect() for the merge logic.
+ *   A parallel copy exists in the frontend (reactapp/src/investmentDatabase.js)
+ *   for offline UI rendering. The two files are intentionally decoupled
+ *   to maintain strict frontend/backend separation.
  *
- *   If instrument rates change, update BOTH:
- *     - MongoDB instruments collection (via admin panel or seed script)
- *     - This file (to keep the offline fallback accurate)
+ *   If instrument rates change, update BOTH files.
  */
 
 // ─── TAX INFO LOOKUP ──────────────────────────────────────────────

@@ -7,17 +7,21 @@ import { toMonthlyRate } from './instrumentConstants.js';
  *
  * Mathematical basis:
  *   SIP FV (annuity-due) = P × [((1+r)^n - 1) / r] × (1+r)
- *   Lump Sum FV = PV × (1+r_m)^(years×12)
- * Where r_m = toMonthlyRate(annualRate, true) (continuous monthly compounding equivalent), n = years × 12.
+ *   Lump Sum FV = PV × (1+r_annual)^years
+ * Where r_m = annualRate / 12 (simple monthly rate), n = years × 12.
+ *
+ * Compounding conventions (aligned with frontend sipCalculator.ts):
+ *   - SIPs: discrete monthly compounding with r_m = annualRate / 12
+ *   - Lump sums: discrete annual compounding
  */
 
 /**
- * Lump Sum (Compound Interest) Future Value — Monthly Compounding.
- * FV = P × (1 + r_m)^(years × 12)
+ * Lump Sum (Compound Interest) Future Value — Annual Compounding.
+ * FV = P × (1 + r_annual)^years
  *
- * Uses monthly compounding to maintain consistency with sipFV, reverseSIP,
- * and Monte Carlo (all of which compound monthly). Using annual compounding
- * here would undervalue lump sums by up to 12.8% over 20 years at 12% returns.
+ * Uses annual compounding to align with the frontend calculator
+ * (sipCalculator.ts calculateLumpSumFutureValue) and Indian retail
+ * convention for lump-sum investment projections.
  *
  * @param {number} principal - One-time investment amount (₹)
  * @param {number} annualRate - Post-tax annual return rate (decimal, e.g. 0.07)
@@ -30,9 +34,7 @@ export function lumpSumFV(principal, annualRate, years) {
   if (!Number.isFinite(annualRate)) return 0;
   // Clamp rate to prevent absurd values (max 50% p.a.)
   const safeRate = Math.max(-0.5, Math.min(annualRate, 0.50));
-  const r = toMonthlyRate(safeRate, true);
-  const n = years * 12;
-  return Math.max(0, principal * Math.pow(1 + r, n));
+  return Math.max(0, principal * Math.pow(1 + safeRate, years));
 }
 
 /**
@@ -54,7 +56,7 @@ export function sipFV(monthlyInvestment, annualRate, years) {
 
   // Clamp rate to prevent absurd values
   const safeRate = Math.max(-0.5, Math.min(annualRate, 0.50));
-  const r = toMonthlyRate(safeRate, true);
+  const r = toMonthlyRate(safeRate);
   const n = years * 12;
 
   // Edge case: zero rate → simple sum
@@ -79,7 +81,7 @@ export function stepUpSipFV(monthlyInvestment, annualRate, years, annualStepUpRa
   if (!Number.isFinite(annualRate)) return 0;
   if (!Number.isFinite(annualStepUpRate) || annualStepUpRate < 0) annualStepUpRate = 0;
 
-  const r = toMonthlyRate(annualRate, true);
+  const r = toMonthlyRate(annualRate);
   const g = annualStepUpRate;
 
   let balance = 0;
@@ -120,7 +122,7 @@ export function reverseSIPFromFV(targetFV, annualRate, years) {
   if (!Number.isFinite(years) || years <= 0) return 0;
   if (!Number.isFinite(annualRate)) return 0;
 
-  const r = toMonthlyRate(annualRate, true);
+  const r = toMonthlyRate(annualRate);
   const n = years * 12;
 
   if (Math.abs(r) < 1e-10) return targetFV / n;
@@ -131,6 +133,9 @@ export function reverseSIPFromFV(targetFV, annualRate, years) {
  * Compute CAGR (Compound Annual Growth Rate) from initial and final values.
  * CAGR = (FV/PV)^(1/n) - 1
  *
+ * Uses the standard discrete CAGR formula used in industry reports,
+ * replacing the previous continuously compounded (log-return) formula.
+ *
  * @param {number} initialValue - Starting value
  * @param {number} finalValue - Ending value
  * @param {number} years - Number of years
@@ -140,9 +145,7 @@ export function computeCAGR(initialValue, finalValue, years) {
   if (!Number.isFinite(initialValue) || initialValue <= 0) return 0;
   if (!Number.isFinite(finalValue) || finalValue <= 0) return 0;
   if (!Number.isFinite(years) || years <= 0) return 0;
-  // Since lumpSumFV uses monthly compounding with continuous equivalent (Math.exp(rate/12)-1),
-  // the inverse is continuous compounding: rate = ln(FV/PV) / years
-  return Math.log(finalValue / initialValue) / years;
+  return Math.pow(finalValue / initialValue, 1 / years) - 1;
 }
 
 /**

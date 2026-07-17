@@ -59,7 +59,7 @@ router.post('/build', verifyJWT, idempotency(), validate(profileSchema), asyncHa
   const taxComparison = compareTaxRegimes(annualIncome);
 
   // Compute risk profile (now uses 3-factor model: age + income + horizon, with savings penalty)
-  const riskProfile = getRiskProfile(age, annualIncome, investment_horizon, 0, 0, monthly_savings);
+  const riskProfile = getRiskProfile(age, annualIncome, investment_horizon, 0, dependents || 0, monthly_savings, existing_debt || 0);
 
   // Investable amount = monthly savings (pre-validated to be < income)
   const investableAmount = monthly_savings;
@@ -183,7 +183,7 @@ router.put('/:profileId', verifyJWT, validate(profileSchema), asyncHandler(async
   // Recompute tax & risk profile
   const taxResult = computeTax(profile.annualIncome, profile.taxRegime);
   const marginalRate = getTaxSlab(profile.annualIncome, profile.taxRegime);
-  const riskProfile = getRiskProfile(age, profile.annualIncome, investment_horizon, 0, 0, monthly_savings);
+  const riskProfile = getRiskProfile(age, profile.annualIncome, investment_horizon, 0, profile.dependents || 0, monthly_savings, profile.existing_debt || 0);
 
   profile.taxSlab = marginalRate;
   profile.effectiveTaxRate = taxResult.effectiveRate;

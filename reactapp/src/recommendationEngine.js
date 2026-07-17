@@ -26,6 +26,12 @@
  */
 import { investmentDatabase, TAX_INFO, RISK_COLORS, CHART_COLORS, CONCENTRATION_CAPS } from './investmentDatabase.js';
 
+// ── Configuration Constants ───────────────────────────────────────
+export const RECOMMENDATION_CONFIG = {
+  TOP_N: 5,
+  MIN_ASSET_CLASSES: 3,
+};
+
 // ── Re-export sub-modules for backward compatibility ──────────────
 export { getMarginalRate, estimateEquityLTCGTaxRate, computePostTaxReturn } from './engine/taxComputation.js';
 export { computeScore, enforceConcentrationLimits, getWhy } from './engine/scoringEngine.js';
@@ -36,6 +42,79 @@ export { TAX_INFO, RISK_COLORS, CHART_COLORS, CONCENTRATION_CAPS };
 import { getMarginalRate, computePostTaxReturn } from './engine/taxComputation.js';
 import { computeScore, enforceConcentrationLimits } from './engine/scoringEngine.js';
 import { filterInstrumentsForGoal, buildEmergencyFundPortfolio, calculateSIPValue } from './engine/goalFiltering.js';
+
+// ─── DIVERSITY ENFORCER ───────────────────────────────────────────
+export function enforceDiversity(scoredInvestments, topN = 5, minAssetClasses = 3) {
+  if (scoredInvestments.length <= topN) {
+    return scoredInvestments.slice(0, topN);
+  }
+
+  let selected = scoredInvestments.slice(0, topN);
+  let remaining = scoredInvestments.slice(topN);
+
+  const getAssetClasses = (arr) => new Set(arr.map(inv => inv.assetClass || inv.category || 'Other'));
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    let selectedClasses = getAssetClasses(selected);
+    if (selectedClasses.size >= minAssetClasses) {
+      break;
+    }
+
+    const allRemainingClasses = getAssetClasses(remaining);
+    const unrepresentedClasses = [...allRemainingClasses].filter(c => !selectedClasses.has(c));
+
+    if (unrepresentedClasses.length === 0) {
+      break;
+    }
+
+    let candidateIdx = -1;
+    for (let i = 0; i < remaining.length; i++) {
+      const cls = remaining[i].assetClass || remaining[i].category || 'Other';
+      if (unrepresentedClasses.includes(cls)) {
+        candidateIdx = i;
+        break;
+      }
+    }
+
+    if (candidateIdx === -1) {
+      break;
+    }
+
+    const candidate = remaining[candidateIdx];
+
+    const counts = {};
+    selected.forEach(inv => {
+      const cls = inv.assetClass || inv.category || 'Other';
+      counts[cls] = (counts[cls] || 0) + 1;
+    });
+
+    let lowestDupIdx = -1;
+    let lowestDupScore = Infinity;
+
+    for (let i = selected.length - 1; i >= 0; i--) {
+      const cls = selected[i].assetClass || selected[i].category || 'Other';
+      if (counts[cls] > 1) {
+        if (selected[i].score < lowestDupScore) {
+          lowestDupScore = selected[i].score;
+          lowestDupIdx = i;
+        }
+      }
+    }
+
+    if (lowestDupIdx === -1) {
+      break;
+    }
+
+    const removed = selected[lowestDupIdx];
+    selected[lowestDupIdx] = candidate;
+    remaining[candidateIdx] = removed;
+
+    remaining.sort((a, b) => b.score - a.score);
+  }
+
+  selected.sort((a, b) => b.score - a.score);
+  return selected;
+}
 
 // ─── FORMAT INR ───────────────────────────────────────────────────
 export function formatINR(val) {
@@ -86,6 +165,18 @@ export function getEligibleInvestments(profile) {
       ? Math.max(0, inv.maturity_age - age)
       : inv.lockIn;
     if (effectiveLockIn > 0 && effectiveLockIn > horizon) return false;
+
+    // ── HORIZON VS idealHorizon range ──
+    if (inv.idealHorizon && inv.idealHorizon.min !== undefined && horizon < inv.idealHorizon.min) return false;
+
+    // ── DEMAT ACCOUNT REQUIREMENT ──
+    if (elig.requiresDemat && profile.has_demat === false) return false;
+
+    // ── EMERGENCY FUND CHECK FOR LIQUIDITY ──
+    const isEmergency = profile.investment_goals?.includes('Emergency Fund') || profile.goals?.includes('Emergency Fund');
+    if (isEmergency && (inv.lockIn > 0 || (inv.liquidityScore !== undefined && inv.liquidityScore < 4))) {
+      return false;
+    }
 
     // ── RISK-APPETITE GATING ──
     if (risk === "low" && inv.risk >= 4) return false;
@@ -189,8 +280,7 @@ export function generateRecommendations(userProfile) {
   scored.sort((a, b) => b.score - a.score);
   scored = enforceConcentrationLimits(scored);
 
-  const maxPicks = Math.min(8, scored.length);
-  const recommended = scored.slice(0, maxPicks);
+  const recommended = enforceDiversity(scored, RECOMMENDATION_CONFIG.TOP_N, RECOMMENDATION_CONFIG.MIN_ASSET_CLASSES);
 
   const clampedScores = recommended.map(inv => Math.max(1, inv.score));
   const totalScore = clampedScores.reduce((sum, s) => sum + s, 0);
@@ -327,7 +417,7 @@ export function computeAllocation(profile, eligibleInvestments) {
 
   let scored = eligibleInvestments.map(inv => computeScore(inv, profile));
   scored.sort((a, b) => b.score - a.score);
-  let top = scored.slice(0, 5);
+  let top = enforceDiversity(scored, RECOMMENDATION_CONFIG.TOP_N, RECOMMENDATION_CONFIG.MIN_ASSET_CLASSES);
 
   if (top.length < 3) {
     const ids = new Set(top.map(i => i.id));

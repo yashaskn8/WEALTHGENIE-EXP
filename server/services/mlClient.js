@@ -140,17 +140,32 @@ export function getRuleBasedFallback({ age, annual_income, monthly_savings, risk
   }
 
   // Confidence scores: primary gets highest, weighted by rule specificity
+  // Provide scores across ALL 19 core keys so the RecommendationPipeline
+  // can use ML boost signals across the full instrument spectrum
   const confPrimary = path.length > 3 ? 0.65 : 0.55; // More specific path = higher confidence
   const confSecondary = (1 - confPrimary) * 0.65;
   const confTertiary = (1 - confPrimary) * 0.35;
 
+  // Build comprehensive confidence map with baseline scores for all keys
+  const ALL_KEYS = [
+    'FD', 'ELSS', 'Equity_MF', 'ETF', 'Debt_MF', 'RBI_Bond', 'G-Sec',
+    'PPF', 'NPS', 'Gold', 'SGB', 'Liquid_MF', 'Arbitrage_MF', 'Hybrid_MF',
+    'Index_MF', 'Midcap_MF', 'Smallcap_MF', 'SCSS', 'SSY',
+  ];
+
+  const confidence_scores = {};
+  // Baseline: small non-zero score so every key participates in scoring
+  for (const key of ALL_KEYS) {
+    confidence_scores[key] = 0.02;
+  }
+  // Overwrite with rule-based picks
+  confidence_scores[primary] = parseFloat(confPrimary.toFixed(2));
+  confidence_scores[secondary] = parseFloat(confSecondary.toFixed(2));
+  confidence_scores[tertiary] = parseFloat(confTertiary.toFixed(2));
+
   return {
     primary, secondary, tertiary,
-    confidence_scores: {
-      [primary]: parseFloat(confPrimary.toFixed(2)),
-      [secondary]: parseFloat(confSecondary.toFixed(2)),
-      [tertiary]: parseFloat(confTertiary.toFixed(2)),
-    },
+    confidence_scores,
     decision_path: path,
     explanation: `Rule-based: ${safeRisk} profile, age ${safeAge}, income ₹${(safeIncome/100000).toFixed(1)}L`,
     fallback: true,

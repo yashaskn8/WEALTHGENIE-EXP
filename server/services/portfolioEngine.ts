@@ -143,21 +143,32 @@ export function buildCovarianceMatrix(assetKeys: string[]): CovarianceMatrixResu
   const n = assetKeys.length;
   if (n === 0) throw new Error('assetKeys must be non-empty');
 
+  // Mapping for asset classes that share correlation/volatility profiles
+  // but aren't directly in ASSET_KEYS
+  const COVARIANCE_ALIAS: Record<string, string> = {
+    'SCSS': 'FD',
+    'SSY': 'PPF',
+    'Gold_Physical': 'Gold',
+    'Balanced_Advantage': 'Hybrid_MF',
+  };
+
   const indices = assetKeys.map((key) => {
-    let lookupKey = key;
-    if (key === 'SCSS') lookupKey = 'FD';
-    if (key === 'SSY') lookupKey = 'PPF';
+    const lookupKey = COVARIANCE_ALIAS[key] || key;
     const idx = ASSET_KEYS.indexOf(lookupKey);
     if (idx === -1) {
-      throw new Error(`Unknown asset key "${key}". Valid keys: ${ASSET_KEYS.join(', ')}`);
+      console.warn(`[portfolioEngine] Unknown asset key "${key}" in buildCovarianceMatrix. ` +
+        `Falling back to Equity_MF correlation profile. Valid keys: ${ASSET_KEYS.join(', ')}`);
+      return 0;
     }
     return idx;
   });
 
   const sigmas = assetKeys.map((key) => {
-    const params = INSTRUMENT_PARAMS[key];
+    const resolvedKey = COVARIANCE_ALIAS[key] || key;
+    const params = INSTRUMENT_PARAMS[resolvedKey] || INSTRUMENT_PARAMS[key];
     if (!params) {
-      throw new Error(`No INSTRUMENT_PARAMS entry for "${key}".`);
+      console.warn(`[portfolioEngine] No INSTRUMENT_PARAMS entry for "${key}". Using default volatility 0.10.`);
+      return 0.10;
     }
     return params.volatility;
   });
@@ -519,6 +530,8 @@ const CANONICAL_MAP: Record<string, string> = {
   'index_mf': 'Index_MF',
   'gold_etf': 'Gold',
   'gold': 'Gold',
+  'gold_physical': 'Gold',
+  'goldphysical': 'Gold',
   'elss': 'ELSS',
   'nifty_etf': 'ETF',
   'etf': 'ETF',
@@ -532,6 +545,10 @@ const CANONICAL_MAP: Record<string, string> = {
   'g-sec': 'G-Sec',
   'rbi_bond': 'RBI_Bond',
   'rbi_bonds': 'RBI_Bond',
+  'balanced_advantage': 'Hybrid_MF',
+  'balancedadvantage': 'Hybrid_MF',
+  'balanced_fund': 'Hybrid_MF',
+  'arbitrage_mf': 'Arbitrage_MF',
 };
 
 export function resolveAssetKey(key: string): string {

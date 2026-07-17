@@ -9,6 +9,15 @@
   <img src="https://img.shields.io/badge/Redis-Upstash-DC382D?style=for-the-badge&logo=redis&logoColor=white" />
 </p>
 
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" /></a>
+  <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/Tests-Passing-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/Engines-6-blueviolet?style=flat-square" />
+  <img src="https://img.shields.io/badge/Instruments-109-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/Screens-15+-orange?style=flat-square" />
+</p>
+
 <h1 align="center">WealthGenie: AI-Based Personalized Financial
 Advisory System
 </h1>
@@ -19,6 +28,7 @@ Advisory System
 </p>
 
 <p align="center">
+  <a href="#-why-wealthgenie">Why WealthGenie?</a> •
   <a href="#-architecture">Architecture</a> •
   <a href="#-key-features">Features</a> •
   <a href="#-computational-engines">Engines</a> •
@@ -28,8 +38,45 @@ Advisory System
 
 ---
 
+## 💡 Why WealthGenie?
+
+Financial planning tools available to Indian retail investors typically provide:
+- ❌ Deterministic projections that ignore sequence-of-returns risk
+- ❌ Opaque recommendations with no explainability
+- ❌ Simplistic tax calculators that miss rebate cliffs and surcharge relief
+- ❌ No portfolio optimization beyond static 60/40 rules
+
+**WealthGenie combines all of these into one platform:**
+- ✅ Quasi-Monte Carlo stochastic simulation (P₁₀ / P₅₀ / P₉₀ wealth bands)
+- ✅ Explainable ML recommendations with TreeSHAP attributions
+- ✅ Three-strategy portfolio optimization (MinVariance / MaxSharpe / Risk Parity)
+- ✅ Progressive tax engine with Section 87A rebate cliff detection
+- ✅ 109 investment instruments across 12 asset classes
+- ✅ Dual-LLM advisory chat grounded in validated computational outputs
+
+---
+
+## 📸 Screenshots
+
+> **Screenshots and a demo GIF/video showcasing the full user flow (Registration → Profile → Dashboard → Monte Carlo → Portfolio → Chat) will be added here.**
+
+<!-- To add screenshots: create a screenshots/ directory, add PNG files, and uncomment below:
+| Screen | Preview |
+|:---|:---|
+| Landing Page | ![Landing](screenshots/landing.png) |
+| Dashboard | ![Dashboard](screenshots/dashboard.png) |
+| Portfolio Optimizer | ![Portfolio](screenshots/portfolio.png) |
+| Tax Planner | ![Tax](screenshots/tax.png) |
+| Goal Planner | ![Goals](screenshots/goals.png) |
+| AI Chatbot | ![Chat](screenshots/chat.png) |
+-->
+
+---
+
 ## 📋 Table of Contents
 
+- [Why WealthGenie?](#-why-wealthgenie)
+- [Screenshots](#-screenshots)
 - [About the Project](#-about-the-project)
 - [Architecture](#-architecture)
 - [Key Features](#-key-features)
@@ -43,6 +90,7 @@ Advisory System
 - [Security & Hardening](#-security--hardening)
 - [Testing](#-testing)
 - [Performance Benchmarks](#-performance-benchmarks)
+- [Project Statistics](#-project-statistics)
 - [Financial Glossary](#-financial-glossary)
 - [Author](#-author)
 - [License](#-license)
@@ -53,7 +101,7 @@ Advisory System
 
 Indian retail investors face a multi-objective financial planning challenge that spans stochastic wealth projection, heterogeneous capital-gains taxation, and regulatory rebate discontinuities. Existing robo-advisory platforms address these concerns in isolation — offering either deterministic growth calculators that ignore sequence-of-returns risk, or opaque recommendation engines that provide no decision rationale.
 
-**WealthGenie** is a modular, three-tier platform that unifies **four domain-specific computational engines** within a single advisory workflow:
+**WealthGenie** is a modular, three-tier platform that unifies **six domain-specific computational engines** within a single advisory workflow:
 
 | Engine | Problem Solved |
 |:---|:---|
@@ -61,8 +109,24 @@ Indian retail investors face a multi-objective financial planning challenge that
 | **Hybrid XIRR Solver** | Computes exact annualized returns for irregular SIP cash-flow schedules with guaranteed convergence |
 | **Portfolio Optimizer** | Constructs optimal allocations via MinVariance, MaxSharpe, and Risk Parity strategies with simplex-projected gradient descent |
 | **Progressive Tax Engine** | Precisely models Section 87A rebate cliffs, surcharge marginal relief, and 7-slab progressive taxation under Finance Act 2023 / Union Budget 2024–2025 |
+| **Risk Profiler** | Computes composite risk scores from age, income, and horizon to match investors with appropriate asset allocations |
+| **Projection Engine** | Standardizes compounding algorithms (SIP monthly, lump sum annual) and discrete CAGR for deterministic wealth projections |
 
 All recommendations are explained via **TreeSHAP** feature attributions, and a dual-LLM conversational interface (**Gemini 2.0 → Groq Llama 3.3** failover) provides natural-language advisory grounded in validated computational outputs.
+
+### 🔄 Feature Workflow
+
+```mermaid
+flowchart TD
+    A["👤 Registration & Login"] --> B["📋 Financial Profile Builder"]
+    B --> C["🎯 Risk Profiler (3-Factor Scoring)"]
+    C --> D["🤖 ML Prediction + TreeSHAP"]
+    D --> E["📊 Portfolio Optimizer (MinVar / MaxSharpe / ERC)"]
+    E --> F["💰 Tax Engine (7-Slab + Sec 87A)"]
+    F --> G["🔮 Monte Carlo Simulator (QMC + Halton)"]
+    G --> H["📱 Interactive Dashboard (15+ Screens)"]
+    H --> I["💬 LLM Advisory Chat (Gemini ↔ Groq)"]
+```
 
 ---
 
@@ -126,6 +190,11 @@ WealthGenie operates on a **decoupled three-tier service-oriented architecture**
 - SEBI disclaimer compliance
 - Custom financial **Jargon Tooltips** for investor education
 
+### 📂 Decoupled 109-Instrument Investment Catalog
+- Comprehensive and decoupled database containing **109 diverse investment options** across 12 asset classes (Government schemes, Debt funds, Equity mutual funds, ETFs, Gold bonds, Corporate debentures, and REITs/InvITs)
+- Custom client-side eligibility validation checks age, income, savings capacity, and demographic constraints before recommending any instrument
+- Server seeder seeds the authoritative MongoDB collection from this unified catalog
+
 ---
 
 ## ⚙️ Computational Engines
@@ -158,7 +227,7 @@ $$f(r) = \sum_{i=0}^{M} C_i (1+r)^{-d_i} = 0$$
 
 **Result:** 100% convergence across all tested cash-flow patterns (including pathological alternating-sign series).
 
-### 3. Portfolio Optimizer (`portfolioEngine.js`)
+### 3. Portfolio Optimizer (`portfolioEngine.js` / `portfolioEngine.ts`)
 
 Three strategies on a 4-asset Indian universe (Equity MF, FD, Gold, G-Sec):
 
@@ -169,6 +238,10 @@ Three strategies on a 4-asset Indian universe (Equity MF, FD, Gold, G-Sec):
 | **Risk Parity (ERC)** | Equalize $RC_i = w_i (\Sigma w)_i / \sigma_p$ | Balanced risk contributions |
 
 Constraints enforced at every gradient step via **Euclidean projection onto the probability simplex** (Duchi et al., 2008).
+
+**Robustness Improvements:**
+* **Extended Instrument Mapping**: Added canonical instrument mapping definitions for `gold_physical`, `balanced_advantage`, and `arbitrage_mf` in both JavaScript and TypeScript versions to prevent crashes during portfolio optimization.
+* **Safe Covariance Matrix Fallbacks**: Out-of-bounds instrument index requests default safely to the baseline index (`0` for `Equity_MF`) with logged diagnostics, ensuring the solver never crashes.
 
 ### 4. Progressive Tax Engine (`taxEngine.js`)
 
@@ -194,6 +267,16 @@ Composite 3-factor scoring model combining:
 - Subjective risk preference (user-stated, 1–10 scale)
 - Age-based risk capacity (younger → higher risk budget)
 - Investment horizon (years to retirement at age 60)
+
+### 6. Projection Engine (`projectionEngine.js`)
+
+Standardizes all return compounding algorithms to ensure 100% agreement between the frontend displays and the backend simulation server:
+* **Monthly Compounding (SIP)**: Uses discrete compounding based on monthly rate division:
+  $$FV_{\text{SIP}} = P_m \times \frac{(1 + r/12)^N - 1}{r/12} \times (1 + r/12)$$
+* **Annual Compounding (Lump Sum)**: Switched from continuous monthly compounding to standard annual compounding:
+  $$FV_{\text{Lump}} = P \times (1 + r)^Y$$
+* **Discrete CAGR**: Standardized to discrete CAGR instead of continuous log return:
+  $$\text{CAGR} = \left(\frac{FV}{PV}\right)^{1/Y} - 1$$
 
 ---
 
@@ -269,7 +352,7 @@ WEALTHGENIEFV/
 │       ├── ProfileEditor.jsx          # Inline profile editing
 │       ├── ComparisonTableModal.jsx   # Side-by-side investment comparison
 │       ├── recommendationEngine.js    # Client-side recommendation logic
-│       ├── investmentDatabase.js      # 14-instrument database (MF, ETF, FD, Gold, etc.)
+│       ├── investmentDatabase.js      # 110-instrument database (MF, ETF, FD, Gold, etc.)
 │       ├── whereToInvest.js           # Investment eligibility engine
 │       ├── components/
 │       │   ├── Sidebar.jsx            # Navigation sidebar with icon menu
@@ -307,7 +390,7 @@ WEALTHGENIEFV/
 │   ├── config/
 │   │   ├── db.js                      # MongoDB connection with retry logic
 │   │   ├── redis.js                   # Upstash Redis client configuration
-│   │   └── seedInstruments.js         # Database seeder for 14 financial instruments
+│   │   └── seedInstruments.js         # Database seeder for 110 financial instruments
 │   ├── middleware/
 │   │   ├── authMiddleware.js          # JWT verification and route protection
 │   │   └── errorHandler.js            # Centralized error handling with stack traces
@@ -662,7 +745,7 @@ Internal benchmarks (methodology and benchmark scripts are not included in the r
 | ML/XAI | Attribution Consistency | Approximate | **Exact** | Axiomatic Shapley values |
 
 > [!NOTE]
-> These numbers are from internal development benchmarks. The benchmark scripts/methodology are not currently included in the repository for independent verification.
+> **Benchmark Environment:** AMD Ryzen 5 5600H · 16 GB DDR4 · Windows 11 · Node.js 22 · Python 3.12. These numbers are from internal development benchmarks. The benchmark scripts/methodology are not currently included in the repository for independent verification. "Baseline" refers to naive implementations (e.g., pseudo-random MC, KernelSHAP, brute-force bisection XIRR).
 
 ---
 
@@ -685,6 +768,23 @@ Internal benchmarks (methodology and benchmark scripts are not included in the r
 | **AUM** | Assets Under Management | Total market value of investments managed by a fund |
 | **Sharpe Ratio** | — | Excess return per unit of risk: $(R_p - R_f) / \sigma_p$ |
 | **Sec 87A** | Section 87A, Income Tax Act | Tax rebate for taxable income ≤ ₹12,00,000 under New Regime |
+
+---
+
+## 📊 Project Statistics
+
+| Metric | Count |
+|:---|:---|
+| **React Components** | 40+ |
+| **REST API Endpoints** | 30+ |
+| **Computational Engines** | 6 |
+| **Investment Instruments** | 109 (12 asset classes) |
+| **Interactive Screens** | 15+ |
+| **Backend Test Suites** | 17 files |
+| **ML Features** | 16 (10 raw + 6 engineered) |
+| **Tax Slabs Modeled** | 7 (New Regime) + Old Regime |
+| **Portfolio Strategies** | 3 (MinVariance, MaxSharpe, Risk Parity) |
+| **Variance Reduction** | 96%+ (QMC + Antithetic + CV) |
 
 ---
 

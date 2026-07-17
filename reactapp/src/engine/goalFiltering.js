@@ -26,6 +26,7 @@ export const GOAL_PROFILES = {
     liquidity_required: 'high',
     max_lock_in_years: 0,
     preferred_categories: ['Debt', 'Government', 'Commodity'],
+    prioritised_ids: ['liquid_mf', 'overnight_mf', 'fd', 'savings_account'],
     excluded_ids: ['elss', 'nps', 'ppf', 'scss', 'rbi_bonds', 'sgb', 'sukanya',
                    'smallcap_mf', 'midcap_mf', 'direct_equity', 'index_mf',
                    'nifty_etf', 'gold_etf'],
@@ -37,6 +38,7 @@ export const GOAL_PROFILES = {
     liquidity_required: 'low',
     max_lock_in_years: 30,
     preferred_categories: ['Equity', 'Government', 'Equity-Debt'],
+    prioritised_ids: ['nps', 'ppf', 'epf', 'vpf', 'flexi_cap_mf', 'index_mf', 'balanced_advantage_mf'],
     excluded_ids: [],
     recommended_horizon_months: null,
   },
@@ -44,6 +46,7 @@ export const GOAL_PROFILES = {
     liquidity_required: 'low',
     max_lock_in_years: null, // No goal-level lock-in cap — the horizon filter handles this
     preferred_categories: ['Equity', 'Equity-Debt', 'Commodity'],
+    prioritised_ids: ['flexi_cap_mf', 'midcap_mf', 'smallcap_mf', 'index_mf', 'nifty_etf', 'reit'],
     excluded_ids: [],
     recommended_horizon_months: null,
   },
@@ -51,8 +54,24 @@ export const GOAL_PROFILES = {
     liquidity_required: 'low',
     max_lock_in_years: 3,
     preferred_categories: ['Equity', 'Government'],
-    prioritised_ids: ['elss', 'nps', 'ppf'],
+    prioritised_ids: ['elss', 'nps', 'ppf', 'fd_tax_saver', 'sukanya'],
     max_80c_limit: 150000,
+    excluded_ids: [],
+    recommended_horizon_months: null,
+  },
+  'Child Education': {
+    liquidity_required: 'medium',
+    max_lock_in_years: 21,
+    preferred_categories: ['Equity', 'Government'],
+    prioritised_ids: ['sukanya', 'ppf', 'flexi_cap_mf', 'large_cap_mf', 'elss'],
+    excluded_ids: [],
+    recommended_horizon_months: null,
+  },
+  'House Purchase': {
+    liquidity_required: 'medium',
+    max_lock_in_years: 10,
+    preferred_categories: ['Equity', 'Equity-Debt', 'Debt', 'Commodity'],
+    prioritised_ids: ['large_cap_mf', 'balanced_advantage_mf', 'debt_mf', 'sgb', 'fd'],
     excluded_ids: [],
     recommended_horizon_months: null,
   },
@@ -71,6 +90,10 @@ export function filterInstrumentsForGoal(instruments, goalType) {
     if (profile.max_lock_in_years !== null && profile.max_lock_in_years !== undefined
         && lockIn > profile.max_lock_in_years) {
       return false;
+    }
+    // Match goalTags if present
+    if (inst.goalTags && Array.isArray(inst.goalTags) && inst.goalTags.length > 0) {
+      if (!inst.goalTags.includes(goalType)) return false;
     }
     return true;
   });

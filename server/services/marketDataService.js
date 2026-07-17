@@ -194,6 +194,12 @@ export async function getLiveInstrumentParams(userPostTaxFDRate) {
     SGB:        { mean: 0.105,               stdDev: 0.14,              source: 'static' },
     Liquid_MF:  { mean: 0.065,               stdDev: 0.005,             source: 'static' },
     Arbitrage_MF: { mean: 0.07,              stdDev: 0.02,              source: 'static' },
+    Hybrid_MF:  { mean: equityMean * 0.92,   stdDev: equityVol * 0.55,  source: 'live' },
+    Index_MF:   { mean: equityMean * 0.98,   stdDev: equityVol * 0.95,  source: 'live' },
+    Midcap_MF:  { mean: equityMean * 1.35,   stdDev: equityVol * 1.22,  source: 'live' },
+    Smallcap_MF: { mean: equityMean * 1.50,  stdDev: equityVol * 1.55,  source: 'live' },
+    SCSS:       { mean: 0.082,               stdDev: 0.002,             source: 'static' },
+    SSY:        { mean: 0.082,               stdDev: 0.002,             source: 'static' },
   };
 
   // Apply the live rates dynamically via updateLiveParam
