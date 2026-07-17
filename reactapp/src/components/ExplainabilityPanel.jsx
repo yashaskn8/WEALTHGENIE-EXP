@@ -1,0 +1,187 @@
+import React from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { getConfidenceLabel } from '../utils/confidenceLabels';
+import JargonTooltip from './JargonTooltip';
+
+const FEATURE_COLORS = {
+  positive: '#10b981',
+  negative: '#f43f5e',
+};
+
+// ── FIX 2: Format raw feature values for human display ─────────────
+function formatRawValue(feature, value) {
+  if (feature === 'annual_income' || feature === 'monthly_savings' || feature === 'liquid_savings') {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency', currency: 'INR', maximumFractionDigits: 0
+    }).format(value);
+  }
+  if (feature === 'age') return `${value} years`;
+  if (feature === 'investment_horizon') return `${value} years`;
+  if (feature === 'existing_debt') return `${value}% of income`;
+  if (feature === 'dependents') return `${value} ${value === 1 ? 'dependent' : 'dependents'}`;
+  if (feature === 'emergency_fund_months') return `${value} ${value === 1 ? 'month' : 'months'}`;
+  if (feature === 'savings_rate') return `${(value * 100).toFixed(1)}%`;
+  if (feature === 'debt_to_income_ratio') return `${(value * 100).toFixed(1)}%`;
+  if (feature === 'emergency_fund_adequacy_ratio') return `${value.toFixed(2)}x target`;
+  if (feature === 'risk_score' || feature === 'stated_tolerance_score') {
+    return `${value.toFixed(1)} / 100`;
+  }
+  if (feature === 'risk_capacity_vs_stated_tolerance_gap') return `${value > 0 ? '+' : ''}${value.toFixed(1)}`;
+  if (feature === 'horizon_adjusted_urgency_score' || feature === 'dependents_adjusted_burden_score') {
+    return `${value.toFixed(1)} / 100`;
+  }
+  return value;
+}
+
+const ShapTooltip = ({ active, payload, totalMagnitude }) => {
+  if (!active || !payload?.length) return null;
+  const item = payload[0].payload;
+  const influencePercent = totalMagnitude > 0
+    ? ((item.magnitude / totalMagnitude) * 100).toFixed(0) : 0;
+
+  return (
+    <div style={{
+      background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(6, 182, 212, 0.3)',
+      borderRadius: 12, padding: '12px 16px', color: '#e2e8f0', fontSize: '0.85rem',
+      boxShadow: '0 8px 32px rgba(0,0,0,0.4)', maxWidth: 260,
+    }}>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>{item.display_name}</div>
+      <div style={{ marginBottom: 4 }}>
+        <span style={{ color: item.direction === 'increased' ? '#10b981' : '#f43f5e', fontWeight: 600 }}>
+          {item.direction === 'increased' ? '↑' : '↓'}
+        </span>{' '}
+        {influencePercent}% weight in picking this for you
+      </div>
+      {item.raw_value != null && (
+        <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+          What you entered: {formatRawValue(item.feature, item.raw_value)}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ExplainabilityPanel = ({ explanation, instrumentName }) => {
+  if (!explanation || !explanation.feature_contributions) return null;
+
+  // ── FIX 1: Consistency guard ───────────────────────────────────
+  const explanationInstrument = explanation?.predicted_class?.replace('_', ' ');
+  const titleInstrument = instrumentName || 'this instrument';
+
+  const isConsistent = explanationInstrument &&
+    (titleInstrument.toLowerCase().includes(explanationInstrument.toLowerCase()) ||
+     explanationInstrument.toLowerCase().includes(titleInstrument.toLowerCase()) ||
+     (explanationInstrument === 'Equity MF' && titleInstrument.includes('Equity')) ||
+     (explanationInstrument === 'Debt MF' && titleInstrument.includes('Debt')) ||
+     (explanationInstrument === 'ETF' && titleInstrument.includes('ETF')));
+
+  if (!isConsistent && import.meta.env.DEV) {
+    console.warn(
+      `[ExplainabilityPanel] Instrument mismatch detected.\n` +
+      ` Title instrument: "${titleInstrument}"\n` +
+      ` Explanation instrument: "${explanationInstrument}"\n` +
+      ` Verify that the explanation prop matches the displayed recommendation.`
+    );
+  }
+
+  const displaySubtitle = isConsistent
+    ? explanation.top_reason
+    : `This recommendation is based on your financial profile. The model analysed your age, income, savings, and risk appetite to generate this suggestion.`;
+
+  const contributions = explanation.feature_contributions.map(c => ({
+    name: c.display_name,
+    display_name: c.display_name,
+    feature: c.feature || c.display_name?.toLowerCase().replace(' ', '_'),
+    value: c.shap_value,
+    magnitude: c.magnitude,
+    direction: c.direction,
+    raw_value: c.raw_value,
+  }));
+
+  // ── FIX 2: Qualitative confidence badge ────────────────────────────────────
+  const conf = getConfidenceLabel(explanation.confidence || 0);
+
+  return (
+    <div style={{
+      marginTop: 24, padding: 24,
+      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(6, 182, 212, 0.08))',
+      border: '1px solid rgba(139, 92, 246, 0.2)',
+      borderRadius: 20, position: 'relative', overflow: 'hidden',
+    }}>
+      {/* Decorative glow */}
+      <div style={{
+        position: 'absolute', top: -30, left: -30, width: 120, height: 120,
+        background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%)',
+        filter: 'blur(25px)', pointerEvents: 'none',
+      }} />
+
+      <h3 style={{
+        fontSize: '1.1rem', fontWeight: 700, color: '#fff', marginBottom: 4,
+        position: 'relative', display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <span style={{
+          display: 'inline-flex', width: 28, height: 28, borderRadius: 8,
+          background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+          alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem',
+        }}>AI</span>
+        Why this was picked for you
+      </h3>
+      <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: 16, position: 'relative' }}>
+        {displaySubtitle}
+      </p>
+
+      {/* FIX 2: Qualitative scale legend */}
+      <div style={{
+        display: 'flex', gap: 20, marginBottom: 12, fontSize: '0.75rem', color: '#94a3b8',
+        position: 'relative',
+      }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: FEATURE_COLORS.positive }} />
+          Makes this a good fit for you
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: FEATURE_COLORS.negative }} />
+          Makes this less ideal for you
+        </span>
+      </div>
+
+      <div style={{ width: '100%', height: 180, minWidth: 0 }}>
+        <ResponsiveContainer>
+          <BarChart data={contributions} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
+            {/* FIX 2: Hide numeric X-axis */}
+            <XAxis type="number" hide={true} />
+            <YAxis type="category" dataKey="name" tick={{ fill: '#e2e8f0', fontSize: 13, fontWeight: 500 }} width={90} axisLine={false} tickLine={false} />
+            <Tooltip content={<ShapTooltip totalMagnitude={contributions.reduce((sum, c) => sum + c.magnitude, 0)} />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+            <ReferenceLine x={0} stroke="#475569" strokeWidth={1} />
+            <Bar dataKey="value" radius={[0, 6, 6, 0]} animationDuration={800} animationBegin={200}>
+              {contributions.map((entry, index) => (
+                <Cell key={index} fill={entry.value >= 0 ? FEATURE_COLORS.positive : FEATURE_COLORS.negative} fillOpacity={0.85} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* FIX 2: Qualitative confidence badge */}
+      <div style={{
+        marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.8rem',
+        position: 'relative',
+      }}>
+        <span style={{
+          color: conf.colour, fontWeight: 600,
+          background: `${conf.colour}15`, padding: '4px 12px', borderRadius: 20,
+          border: `1px solid ${conf.colour}30`,
+        }}>
+          {conf.label}
+        </span>
+        {conf.note && (
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 320 }}>
+            {conf.note}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ExplainabilityPanel;
