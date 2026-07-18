@@ -5,6 +5,7 @@
 import React from 'react';
 import { Building2, Shield, Star, Info, Wallet, Zap, History as HistoryIcon } from 'lucide-react';
 import WHERE_TO_INVEST from '../../whereToInvest';
+import { generateWTI } from '../../utils/wtiGenerator';
 
 const RISK_LEVELS = [
   { label: 'Low', color: '#22c55e', desc: 'Capital is safe. Government-guaranteed or DICGC-insured. Virtually zero chance of loss.' },
@@ -16,7 +17,8 @@ const RISK_LEVELS = [
 ];
 
 const WhereToInvestTab = ({ inv }) => {
-  const wtiData = WHERE_TO_INVEST[inv.id];
+  // Try curated data first, then fall back to dynamic generation
+  const wtiData = WHERE_TO_INVEST[inv.id] || generateWTI(inv);
   if (!wtiData) return (
     <div style={{ textAlign: 'center', padding: '80px 0' }}>
       <Building2 size={48} color="var(--ddm-text-muted)" />

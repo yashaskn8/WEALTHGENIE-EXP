@@ -38,8 +38,8 @@ const DeepDiveModal = ({ isOpen, onClose, investment, allRecommendations, horizo
   // ─── Instrument-Aware Calculator Bounds ───
   const calcBounds = useMemo(() => {
     if (!investment) return { returnMin: 1, returnMax: 30, yearMin: 1, yearMax: 40 };
-    const retMin = investment.expected_return_min ?? (investment.rate ? investment.rate * 0.85 : 5);
-    const retMax = investment.expected_return_max ?? (investment.rate || 12);
+    const retMin = investment.expected_return_min ?? investment.returnRange?.min ?? (investment.expectedReturn ? investment.expectedReturn * 0.85 : (investment.rate ? investment.rate * 0.85 : 5));
+    const retMax = investment.expected_return_max ?? investment.returnRange?.max ?? (investment.expectedReturn || investment.rate || 12);
     const cat = (investment.category || investment.cat || '').toLowerCase();
     const name = (investment.name || investment.abbr || '').toLowerCase();
 
@@ -54,9 +54,9 @@ const DeepDiveModal = ({ isOpen, onClose, investment, allRecommendations, horizo
     else if (name.includes('liquid')) { yearMin = 1; yearMax = 3; }
     else if (name.includes('sgb') || name.includes('gold bond')) { yearMin = 5; yearMax = 8; }
     else if (name.includes('elss')) { yearMin = 3; yearMax = 25; }
-    else if (cat === 'equity') { yearMin = 3; yearMax = 30; }
-    else if (cat === 'hybrid') { yearMin = 3; yearMax = 25; }
-    else if (cat === 'debt') { yearMin = 1; yearMax = 10; }
+    else if (cat.includes('equity')) { yearMin = 3; yearMax = 30; }
+    else if (cat.includes('hybrid')) { yearMin = 3; yearMax = 25; }
+    else if (cat.includes('debt') || cat.includes('deposit') || cat.includes('bond')) { yearMin = 1; yearMax = 10; }
 
     const sliderRetMin = Math.max(1, Math.floor(retMin - 2));
     const sliderRetMax = Math.min(30, Math.ceil(retMax + 2));
@@ -69,8 +69,8 @@ const DeepDiveModal = ({ isOpen, onClose, investment, allRecommendations, horizo
     setPrevInvestmentId(investment?.id);
     setPrevHorizon(horizon);
 
-    const retMin = investment ? (investment.expected_return_min ?? (investment.rate ? investment.rate * 0.85 : 5)) : 5;
-    const retMax = investment ? (investment.expected_return_max ?? (investment.rate || 12)) : 12;
+    const retMin = investment ? (investment.expected_return_min ?? investment.returnRange?.min ?? (investment.expectedReturn ? investment.expectedReturn * 0.85 : (investment.rate ? investment.rate * 0.85 : 5))) : 5;
+    const retMax = investment ? (investment.expected_return_max ?? investment.returnRange?.max ?? (investment.expectedReturn || investment.rate || 12)) : 12;
     const cat = investment ? (investment.category || investment.cat || '').toLowerCase() : '';
     const name = investment ? (investment.name || investment.abbr || '').toLowerCase() : '';
 
@@ -85,9 +85,9 @@ const DeepDiveModal = ({ isOpen, onClose, investment, allRecommendations, horizo
     else if (name.includes('liquid')) { yearMin = 1; yearMax = 3; }
     else if (name.includes('sgb') || name.includes('gold bond')) { yearMin = 5; yearMax = 8; }
     else if (name.includes('elss')) { yearMin = 3; yearMax = 25; }
-    else if (cat === 'equity') { yearMin = 3; yearMax = 30; }
-    else if (cat === 'hybrid') { yearMin = 3; yearMax = 25; }
-    else if (cat === 'debt') { yearMin = 1; yearMax = 10; }
+    else if (cat.includes('equity')) { yearMin = 3; yearMax = 30; }
+    else if (cat.includes('hybrid')) { yearMin = 3; yearMax = 25; }
+    else if (cat.includes('debt') || cat.includes('deposit') || cat.includes('bond')) { yearMin = 1; yearMax = 10; }
 
     const sliderRetMin = Math.max(1, Math.floor(retMin - 2));
     const sliderRetMax = Math.min(30, Math.ceil(retMax + 2));
@@ -104,8 +104,8 @@ const DeepDiveModal = ({ isOpen, onClose, investment, allRecommendations, horizo
     if (!investment) return {};
     return {
       ...investment,
-      expected_return_min: investment.expected_return_min ?? (investment.rate ? investment.rate * 0.85 : 8),
-      expected_return_max: investment.expected_return_max ?? (investment.rate || 10),
+      expected_return_min: investment.expected_return_min ?? investment.returnRange?.min ?? (investment.expectedReturn ? investment.expectedReturn * 0.85 : (investment.rate ? investment.rate * 0.85 : 8)),
+      expected_return_max: investment.expected_return_max ?? investment.returnRange?.max ?? (investment.expectedReturn || investment.rate || 10),
       category: investment.category || investment.cat || 'Other',
       risk_level: investment.risk_level || investment.riskLabel || 'Medium',
       lock_in_years: investment.lock_in_years ?? investment.lockIn ?? 0,

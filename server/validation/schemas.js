@@ -92,7 +92,8 @@ export const recommendSchema = Joi.object({
 const VALID_INSTRUMENTS = [
   'FD', 'ELSS', 'Equity_MF', 'ETF', 'Debt_MF',
   'RBI_Bond', 'G-Sec', 'PPF', 'NPS', 'Gold',
-  'SGB', 'Liquid_MF', 'Arbitrage_MF',
+  'SGB', 'Liquid_MF', 'Arbitrage_MF', 'Hybrid_MF',
+  'Index_MF', 'Midcap_MF', 'Smallcap_MF', 'SCSS', 'SSY',
 ];
 
 export const projectionSchema = Joi.object({

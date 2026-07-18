@@ -166,8 +166,8 @@ const DashboardShell = ({ userProfile, onProfileUpdate }) => {
   const handleLearnMore = (investment) => {
     const normalized = {
       ...investment,
-      expected_return_min: investment.expected_return_min ?? (investment.rate ? investment.rate * 0.85 : 0),
-      expected_return_max: investment.expected_return_max ?? (investment.rate || 0),
+      expected_return_min: investment.expected_return_min ?? investment.returnRange?.min ?? (investment.expectedReturn ? investment.expectedReturn * 0.85 : (investment.rate ? investment.rate * 0.85 : 0)),
+      expected_return_max: investment.expected_return_max ?? investment.returnRange?.max ?? (investment.expectedReturn || investment.rate || 0),
       category: investment.category || investment.cat || 'Other',
       risk_level: investment.risk_level || investment.riskLabel || 'Medium',
       lock_in_years: investment.lock_in_years ?? investment.lockIn ?? 0,
@@ -266,7 +266,7 @@ const DashboardShell = ({ userProfile, onProfileUpdate }) => {
       case 'sip-planner':
         return <ErrorBoundary><StepUpPlanner profile={userProfile} /></ErrorBoundary>;
       case 'tax-optimizer':
-        return <ErrorBoundary><TaxScreen profile={userProfile} /></ErrorBoundary>;
+        return <ErrorBoundary><TaxScreen profile={userProfile} onLearnMore={handleLearnMore} /></ErrorBoundary>;
       case 'compare':
         return (
           <ErrorBoundary>

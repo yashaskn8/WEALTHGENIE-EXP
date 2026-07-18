@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatINR } from '../utils/indianNumberFormat';
 import { getTaxSavingRecommendations, SECTION_80C_LIMIT, SECTION_80CCD_1B_LIMIT } from '../utils/taxCalculator';
 import { investmentDatabase } from '../investmentDatabase';
-import { ShieldCheck, Calculator, Wallet, Receipt, Percent, PiggyBank, TrendingDown, Info, Sparkles, IndianRupee, HelpCircle, Layers, ArrowUpRight, CheckCircle2, Heart, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ShieldCheck, Calculator, Wallet, Receipt, Percent, PiggyBank, TrendingDown, Info, Sparkles, IndianRupee, HelpCircle, Layers, ArrowUpRight, CheckCircle2, Heart, ToggleLeft, ToggleRight, Landmark, Coins } from 'lucide-react';
 import JargonTooltip from './JargonTooltip';
 import api from '../services/api';
 import './TaxScreen.css';
@@ -180,7 +180,7 @@ function getSlabBreakdownLocal(taxableIncome, isNew) {
 }
 
 
-const TaxScreen = ({ profile }) => {
+const TaxScreen = ({ profile, onLearnMore }) => {
   const defaultIncome = (profile?.monthly_income || 65000) * 12;
   const [annualIncome, setAnnualIncome] = useState(defaultIncome);
   const [regime, setRegime] = useState(profile?.taxRegime || 'new');
@@ -343,7 +343,7 @@ const TaxScreen = ({ profile }) => {
       <div className="tax-bg-orb tax-bg-orb--2" />
 
       <motion.header 
-        style={{ marginBottom: 32, textAlign: 'center' }}
+        className="tax-page-header"
         initial={{ opacity: 0, y: -15 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -352,7 +352,7 @@ const TaxScreen = ({ profile }) => {
           Tax Optimizer
         </div>
         <h1 className="tax-page-title">Save Money on Taxes</h1>
-        <p className="tax-page-subtitle" style={{ color: '#94a3b8' }}>
+        <p className="tax-page-subtitle">
           Find out how much tax you owe, which tax system saves you more, and discover easy ways to reduce your tax bill.
         </p>
         <div className="tax-header-divider" />
@@ -365,25 +365,14 @@ const TaxScreen = ({ profile }) => {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            style={{
-              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)',
-              border: '2px solid rgba(245, 158, 11, 0.5)',
-              borderRadius: '16px',
-              padding: '16px 20px',
-              marginBottom: '24px',
-              display: 'flex',
-              gap: '14px',
-              alignItems: 'flex-start',
-              backdropFilter: 'blur(20px)',
-              textAlign: 'left'
-            }}
+            className="tax-warning-banner"
           >
-            <div style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b', padding: '10px', borderRadius: '12px', flexShrink: 0 }}>
+            <div className="tax-warning-icon-wrapper">
               <Info size={22} />
             </div>
             <div>
-              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 800, color: '#f59e0b' }}>UNVERIFIED TAX DATA</h4>
-              <p style={{ margin: 0, fontSize: '0.82rem', color: '#fbbf24', lineHeight: 1.5 }}>
+              <h4 className="tax-warning-title">UNVERIFIED TAX DATA</h4>
+              <p className="tax-warning-text">
                 {serverTaxData.warning || 'The tax slabs used for this calculation have not been confirmed against an official gazette source. Do not use this for actual tax filing.'}
               </p>
             </div>
@@ -395,25 +384,14 @@ const TaxScreen = ({ profile }) => {
       <motion.div 
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        style={{
-          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(15, 23, 42, 0.8) 100%)',
-          border: '1px solid rgba(16, 185, 129, 0.25)',
-          borderRadius: '20px',
-          padding: '20px 24px',
-          marginBottom: '32px',
-          display: 'flex',
-          gap: '16px',
-          alignItems: 'center',
-          backdropFilter: 'blur(20px)',
-          textAlign: 'left'
-        }}
+        className="tax-verdict-banner"
       >
-        <div style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', padding: '12px', borderRadius: '14px' }}>
+        <div className="tax-verdict-icon-wrapper">
           <Sparkles size={24} />
         </div>
         <div>
-          <h4 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', fontWeight: 800, color: '#fff' }}>Our Recommendation</h4>
-          <p style={{ margin: 0, fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.5 }}>
+          <h4 className="tax-verdict-title">Our Recommendation</h4>
+          <p className="tax-verdict-text">
             {betterRegime !== 'Either' ? (
               <span>You'll pay less tax with the <strong>{betterRegime} Regime</strong> - saving <strong>{formatINR(betterRegimeSavings)}</strong> compared to the other option!</span>
             ) : (
@@ -430,15 +408,9 @@ const TaxScreen = ({ profile }) => {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 8, fontSize: '0.8rem', color: '#38bdf8', marginBottom: 20
-            }}
+            className="tax-sync-loader"
           >
-            <div className="spinner-loader" style={{
-              width: 14, height: 14, border: '2px solid rgba(56,189,248,0.2)',
-              borderTopColor: '#38bdf8', borderRadius: '50%', animation: 'spin 0.6s linear infinite'
-            }} />
+            <div className="spinner-loader" />
             Calculating your taxes...
           </motion.div>
         )}
@@ -451,10 +423,7 @@ const TaxScreen = ({ profile }) => {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 8, fontSize: '0.8rem', color: '#fb7185', marginBottom: 20
-            }}
+            className="tax-offline-notice"
           >
             <Info size={14} />
             <span>Using high-fidelity local tax calculator.</span>
@@ -471,7 +440,7 @@ const TaxScreen = ({ profile }) => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
           >
-            <CheckCircle2 size={28} color="#34d399" style={{ flexShrink: 0 }} />
+            <CheckCircle2 size={28} className="tax-zero-icon-green" />
             <div>
               <div style={{ fontWeight: 800 }}>You Pay Zero Tax</div>
               <div style={{ fontSize: '0.85rem', color: '#a7f3d0', marginTop: 2 }}>
@@ -492,7 +461,7 @@ const TaxScreen = ({ profile }) => {
         {/* Gross Income Slider Card */}
         <div className="tax-control-card">
           <div className="tax-control-card-header">
-            <div className="tax-control-card-icon" style={{ background: 'rgba(56,189,248,0.1)', color: '#38bdf8' }}>
+            <div className="tax-control-card-icon tax-control-card-icon--blue">
               <Wallet size={20} />
             </div>
             <label>Your Yearly Income (before tax)</label>
@@ -507,8 +476,6 @@ const TaxScreen = ({ profile }) => {
             onChange={(e) => setAnnualIncome(Number(e.target.value))}
             className="tax-slider"
             style={{ 
-              width: '100%', 
-              margin: '20px 0', 
               '--val': `${((annualIncome - 300000) / (12000000 - 300000)) * 100}%` 
             }}
           />
@@ -523,12 +490,12 @@ const TaxScreen = ({ profile }) => {
         {/* Regime Switcher Card */}
         <div className="tax-control-card">
           <div className="tax-control-card-header">
-            <div className="tax-control-card-icon" style={{ background: 'rgba(139,92,246,0.1)', color: '#a78bfa' }}>
+            <div className="tax-control-card-icon tax-control-card-icon--purple">
               <Calculator size={20} />
             </div>
             <label>Choose Your Tax System</label>
           </div>
-          <div className="tax-regime-toggle" style={{ margin: '18px 0' }}>
+          <div className="tax-regime-toggle">
             <button 
               className={`regime-btn ${regime === 'old' ? 'regime-btn--active' : ''}`} 
               onClick={() => setRegime('old')}
@@ -543,12 +510,12 @@ const TaxScreen = ({ profile }) => {
             </button>
           </div>
           {betterRegime !== 'Either' ? (
-            <div className="tax-better-badge" style={{ backgroundColor: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: '#34d399', width: '100%', boxSizing: 'border-box' }}>
+            <div className="tax-better-badge">
               <CheckCircle2 size={14} style={{ marginRight: 6, flexShrink: 0 }} />
               <span><strong>Tip:</strong> The {betterRegime} Regime saves you <strong>{formatINR(betterRegimeSavings)}</strong></span>
             </div>
           ) : (
-            <div className="tax-better-badge" style={{ backgroundColor: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', color: '#38bdf8', width: '100%', boxSizing: 'border-box' }}>
+            <div className="tax-better-badge tax-better-badge--info">
               <Info size={14} style={{ marginRight: 6, flexShrink: 0 }} />
               <span>Both systems charge the same tax. You can pick either one.</span>
             </div>
@@ -559,139 +526,165 @@ const TaxScreen = ({ profile }) => {
         <AnimatePresence>
           {regime === 'old' && (
             <motion.div 
-              style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 12 }}
+              className="tax-deductions-panel"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
             >
               {/* 80C Deduction */}
-              <div className="tax-control-card" style={{ padding: 18 }}>
-                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
+              <div className="tax-control-card tax-control-card--small">
+                <label className="tax-input-label">
                   <JargonTooltip term="Section 80C">Tax-Saving Investments</JargonTooltip>
                 </label>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: 8, lineHeight: 1.4 }}>
+                <div className="tax-input-subtext">
                   PPF, ELSS, Life Insurance, Tax-saver FD, etc.
                 </div>
-                <input 
-                  type="number" 
-                  value={existing80C} 
-                  onChange={e => setExisting80C(e.target.value === '' ? '' : Math.min(SECTION_80C_LIMIT, Number(e.target.value)))} 
-                  max={SECTION_80C_LIMIT} 
-                  className="tax-input" 
-                  placeholder="0"
-                />
+                <div className="tax-input-wrapper">
+                  <span className="tax-input-prefix">₹</span>
+                  <input 
+                    type="number" 
+                    value={existing80C} 
+                    onChange={e => setExisting80C(e.target.value === '' ? '' : Math.min(SECTION_80C_LIMIT, Number(e.target.value)))} 
+                    max={SECTION_80C_LIMIT} 
+                    className="tax-input" 
+                    placeholder="0"
+                  />
+                </div>
                 <div className="tax-input-hint">Limit: {formatINR(SECTION_80C_LIMIT)} per year</div>
               </div>
 
               {/* NPS 80CCD */}
-              <div className="tax-control-card" style={{ padding: 18 }}>
-                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
+              <div className="tax-control-card tax-control-card--small">
+                <label className="tax-input-label">
                   <JargonTooltip term="NPS">Pension (NPS) Savings</JargonTooltip>
                 </label>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: 8, lineHeight: 1.4 }}>
+                <div className="tax-input-subtext">
                   Extra ₹50K deduction for NPS contributions
                 </div>
-                <input 
-                  type="number" 
-                  value={existing80CCD} 
-                  onChange={e => setExisting80CCD(e.target.value === '' ? '' : Math.min(SECTION_80CCD_1B_LIMIT, Number(e.target.value)))} 
-                  max={SECTION_80CCD_1B_LIMIT} 
-                  className="tax-input" 
-                  placeholder="0"
-                />
+                <div className="tax-input-wrapper">
+                  <span className="tax-input-prefix">₹</span>
+                  <input 
+                    type="number" 
+                    value={existing80CCD} 
+                    onChange={e => setExisting80CCD(e.target.value === '' ? '' : Math.min(SECTION_80CCD_1B_LIMIT, Number(e.target.value)))} 
+                    max={SECTION_80CCD_1B_LIMIT} 
+                    className="tax-input" 
+                    placeholder="0"
+                  />
+                </div>
                 <div className="tax-input-hint">Limit: {formatINR(SECTION_80CCD_1B_LIMIT)} per year</div>
               </div>
 
               {/* HRA Exemption */}
-              <div className="tax-control-card" style={{ padding: 18 }}>
-                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
+              <div className="tax-control-card tax-control-card--small">
+                <label className="tax-input-label">
                   Rent Allowance (HRA)
                 </label>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: 8, lineHeight: 1.4 }}>
+                <div className="tax-input-subtext">
                   Tax-free portion of your rent allowance from salary
                 </div>
-                <input 
-                  type="number" 
-                  value={existingHRA} 
-                  onChange={e => setExistingHRA(e.target.value === '' ? '' : Number(e.target.value))} 
-                  className="tax-input" 
-                  placeholder="0"
-                />
+                <div className="tax-input-wrapper">
+                  <span className="tax-input-prefix">₹</span>
+                  <input 
+                    type="number" 
+                    value={existingHRA} 
+                    onChange={e => setExistingHRA(e.target.value === '' ? '' : Number(e.target.value))} 
+                    className="tax-input" 
+                    placeholder="0"
+                  />
+                </div>
                 <div className="tax-input-hint">Enter the HRA exemption amount from your salary slip</div>
               </div>
 
               {/* Home Loan Interest (Sec 24b) */}
-              <div className="tax-control-card" style={{ padding: 18 }}>
-                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
+              <div className="tax-control-card tax-control-card--small">
+                <label className="tax-input-label">
                   Home Loan Interest
                 </label>
-                <input 
-                  type="number" 
-                  value={existingHomeLoan} 
-                  onChange={e => setExistingHomeLoan(e.target.value === '' ? '' : Math.min(200000, Number(e.target.value)))} 
-                  max={200000} 
-                  className="tax-input" 
-                  placeholder="0"
-                />
-                <div className="tax-input-hint">Yearly interest on your home loan (limit: {formatINR(200000)})</div>
+                <div className="tax-input-subtext" style={{ minHeight: '34px' }}>
+                  Interest portion of EMI
+                </div>
+                <div className="tax-input-wrapper">
+                  <span className="tax-input-prefix">₹</span>
+                  <input 
+                    type="number" 
+                    value={existingHomeLoan} 
+                    onChange={e => setExistingHomeLoan(e.target.value === '' ? '' : Math.min(200000, Number(e.target.value)))} 
+                    max={200000} 
+                    className="tax-input" 
+                    placeholder="0"
+                  />
+                </div>
+                <div className="tax-input-hint">Yearly interest limit: {formatINR(200000)}</div>
               </div>
 
               {/* Medical Insurance 80D - Self/Family */}
-              <div className="tax-control-card" style={{ padding: 18 }}>
-                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <div className="tax-control-card tax-control-card--small">
+                <label className="tax-input-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Heart size={13} /> Medical Insurance
                 </label>
-                <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: 8, lineHeight: 1.4 }}>
-                  Self, spouse, and children under Section 80D
+                <div className="tax-input-subtext" style={{ minHeight: '34px' }}>
+                  Self, spouse, and children (Sec 80D)
                 </div>
-                <input
-                  type="number"
-                  value={existing80DSelf}
-                  onChange={e => setExisting80DSelf(e.target.value === '' ? '' : Math.min(self80DLimit, Number(e.target.value)))}
-                  max={self80DLimit}
-                  className="tax-input"
-                  placeholder="0"
-                />
+                <div className="tax-input-wrapper">
+                  <span className="tax-input-prefix">₹</span>
+                  <input
+                    type="number"
+                    value={existing80DSelf}
+                    onChange={e => setExisting80DSelf(e.target.value === '' ? '' : Math.min(self80DLimit, Number(e.target.value)))}
+                    max={self80DLimit}
+                    className="tax-input"
+                    placeholder="0"
+                  />
+                </div>
                 <div className="tax-input-hint">Limit: {formatINR(self80DLimit)} per year</div>
               </div>
 
               {/* Medical Insurance 80D - Parents */}
-              <div className="tax-control-card" style={{ padding: 18 }}>
-                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <div className="tax-control-card tax-control-card--small">
+                <label className="tax-input-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Heart size={13} /> Parent Insurance
                 </label>
                 <button
                   type="button"
                   onClick={() => setParentsSenior(prev => !prev)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, color: parentsSenior ? '#34d399' : '#94a3b8', padding: '6px 8px', marginBottom: 8, cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}
+                  className={`tax-toggle-senior-btn ${parentsSenior ? 'tax-toggle-senior-btn--active' : 'tax-toggle-senior-btn--inactive'}`}
                 >
                   {parentsSenior ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                   Senior citizen parents
                 </button>
-                <input
-                  type="number"
-                  value={existing80DParents}
-                  onChange={e => setExisting80DParents(e.target.value === '' ? '' : Math.min(parents80DLimit, Number(e.target.value)))}
-                  max={parents80DLimit}
-                  className="tax-input"
-                  placeholder="0"
-                />
+                <div className="tax-input-wrapper">
+                  <span className="tax-input-prefix">₹</span>
+                  <input
+                    type="number"
+                    value={existing80DParents}
+                    onChange={e => setExisting80DParents(e.target.value === '' ? '' : Math.min(parents80DLimit, Number(e.target.value)))}
+                    max={parents80DLimit}
+                    className="tax-input"
+                    placeholder="0"
+                  />
+                </div>
                 <div className="tax-input-hint">Limit: {formatINR(parents80DLimit)} per year</div>
               </div>
 
               {/* Other Deductions */}
-              <div className="tax-control-card" style={{ padding: 18, gridColumn: 'span 3' }}>
-                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>
+              <div className="tax-control-card tax-control-card--small" style={{ gridColumn: 'span 3' }}>
+                <label className="tax-input-label">
                   Other Deductions
                 </label>
-                <input 
-                  type="number" 
-                  value={existingOther} 
-                  onChange={e => setExistingOther(e.target.value === '' ? '' : Number(e.target.value))} 
-                  className="tax-input" 
-                  placeholder="0"
-                />
-                <div className="tax-input-hint">LTA, education loan interest, donations, and other eligible deductions.</div>
+                <div className="tax-input-subtext">
+                  LTA, education loan interest, donations, and other eligible deductions.
+                </div>
+                <div className="tax-input-wrapper">
+                  <span className="tax-input-prefix">₹</span>
+                  <input 
+                    type="number" 
+                    value={existingOther} 
+                    onChange={e => setExistingOther(e.target.value === '' ? '' : Number(e.target.value))} 
+                    className="tax-input" 
+                    placeholder="0"
+                  />
+                </div>
               </div>
             </motion.div>
           )}
@@ -708,7 +701,7 @@ const TaxScreen = ({ profile }) => {
         <div className="tax-summary-card">
           <div className="tax-sum-icon"><Wallet size={20} /></div>
           <span className="tax-sum-label">Taxable Income (Salary after deductions)</span>
-          <span className="tax-sum-value" style={{ color: '#fff' }}>{formatINR(taxableIncome)}</span>
+          <span className="tax-sum-value">{formatINR(taxableIncome)}</span>
         </div>
         <div className="tax-summary-card">
           <div className="tax-sum-icon"><Receipt size={20} /></div>
@@ -718,7 +711,7 @@ const TaxScreen = ({ profile }) => {
         <div className="tax-summary-card">
           <div className="tax-sum-icon"><Percent size={20} /></div>
           <span className="tax-sum-label">Average Tax Rate</span>
-          <span className="tax-sum-value" style={{ color: '#a78bfa' }}>{effectiveRate}%</span>
+          <span className="tax-sum-value">{effectiveRate}%</span>
         </div>
         <div className="tax-summary-card">
           <div className="tax-sum-icon"><PiggyBank size={20} /></div>
@@ -732,16 +725,14 @@ const TaxScreen = ({ profile }) => {
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{
-            background: 'linear-gradient(135deg, rgba(6,182,212,0.06) 0%, rgba(139,92,246,0.04) 100%)',
-            border: '1px solid rgba(6, 182, 212, 0.25)',
-            borderRadius: 20, padding: 24, marginBottom: 32, display: 'flex', gap: 16, alignItems: 'flex-start'
-          }}
+          className="tax-crossover-banner"
         >
-          <Sparkles size={24} color="#38bdf8" style={{ flexShrink: 0, marginTop: 2 }} />
+          <div className="tax-crossover-icon-wrapper">
+            <Sparkles size={24} />
+          </div>
           <div>
-            <h4 style={{ color: '#fff', fontSize: '1rem', fontWeight: 800, margin: '0 0 6px 0' }}>When Should You Switch Regimes?</h4>
-            <p style={{ color: '#cbd5e1', fontSize: '0.88rem', margin: 0, lineHeight: 1.5 }}>
+            <h4 className="tax-crossover-title">When Should You Switch Regimes?</h4>
+            <p className="tax-crossover-text">
               With your income of <strong>{formatINR(annualIncome)}</strong>, you need to invest at least <strong>{formatINR(crossoverBreakpoint)}</strong> in tax-saving options (like PF, home loan, or medical insurance) to make the Old Regime cheaper than the New Regime.
               {currentDeductions >= crossoverBreakpoint ? (
                 <span> You have already declared <strong>{formatINR(currentDeductions)}</strong> in savings - which means the <strong>Old Regime is the cheaper option for you!</strong></span>
@@ -754,24 +745,10 @@ const TaxScreen = ({ profile }) => {
       )}
 
       {/* Toggle Slab Details */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24, marginTop: 24 }}>
+      <div className="tax-toggle-breakdown-wrapper">
         <button
           onClick={() => setShowSlabBreakdown(!showSlabBreakdown)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '12px',
-            padding: '10px 20px',
-            color: '#38bdf8',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            transition: 'all 0.2s ease'
-          }}
+          className="tax-toggle-breakdown-btn"
         >
           {showSlabBreakdown ? 'Hide Detailed Breakdown' : 'Show Detailed Tax Breakdown & Charts'}
         </button>
@@ -780,58 +757,37 @@ const TaxScreen = ({ profile }) => {
       {showSlabBreakdown && (
         <>
           {/* Slab Breakdown Details */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 24, marginBottom: 32 }}>
+          <div className="tax-slabs-grid">
             {/* Slabs table */}
-            <div style={{
-              background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.7))',
-              border: '1px solid rgba(255,255,255,0.06)', borderRadius: 20, padding: 24
-            }}>
-              <h3 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="tax-slabs-container">
+              <h3 className="tax-slabs-header">
                 <Layers size={18} color="#38bdf8" />
                 How Your Tax is Calculated ({regime === 'new' ? 'New' : 'Old'} Regime)
               </h3>
-              <p style={{ margin: '0 0 16px 0', fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5 }}>
+              <p className="tax-slabs-subtext">
                 Your salary is split into ranges. Each range has a different tax rate. Only the income that falls in each range is taxed at that rate.
               </p>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', color: '#cbd5e1' }}>
+              <table className="tax-slabs-table">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', textAlign: 'left' }}>
-                    <th style={{ padding: '12px 8px', color: '#94a3b8', fontWeight: 600 }}>Income Range</th>
-                    <th style={{ padding: '12px 8px', color: '#94a3b8', fontWeight: 600 }}>Tax %</th>
-                    <th style={{ padding: '12px 8px', color: '#94a3b8', fontWeight: 600 }}>Your Income Here</th>
-                    <th style={{ padding: '12px 8px', color: '#94a3b8', fontWeight: 600, textAlign: 'right' }}>Tax You Pay</th>
+                  <tr>
+                    <th>Income Range</th>
+                    <th>Tax %</th>
+                    <th>Your Income Here</th>
+                    <th style={{ textAlign: 'right' }}>Tax You Pay</th>
                   </tr>
                 </thead>
                 <tbody>
                   {activeSlabs.map((s, idx) => {
-                    // Styling for each row type
                     const isRebate = s.isRebateRow;
                     const isTotal = s.isTotalRow;
 
                     if (isTotal) {
                       return (
-                        <tr key={idx} style={{
-                          borderTop: '2px solid rgba(255,255,255,0.15)',
-                          background: s.taxInSlab === 0
-                            ? 'rgba(16, 185, 129, 0.12)'
-                            : 'rgba(251, 191, 36, 0.08)'
-                        }}>
-                          <td colSpan={3} style={{
-                            padding: '16px 8px',
-                            fontWeight: 900,
-                            fontSize: '0.95rem',
-                            color: s.taxInSlab === 0 ? '#34d399' : '#fbbf24'
-                          }}>
+                        <tr key={idx} className={`tax-slabs-row tax-slabs-row--total ${s.taxInSlab === 0 ? 'tax-slabs-row--total-zero' : 'tax-slabs-row--total-taxed'}`}>
+                          <td colSpan={3}>
                             {s.taxInSlab === 0 ? 'Your Total Tax = ZERO' : 'Your Total Tax'}
                           </td>
-                          <td style={{
-                            padding: '16px 8px',
-                            textAlign: 'right',
-                            fontWeight: 900,
-                            fontSize: '1.05rem',
-                            color: s.taxInSlab === 0 ? '#34d399' : '#fbbf24',
-                            fontVariantNumeric: 'tabular-nums'
-                          }}>
+                          <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                             {s.taxInSlab === 0 ? '₹0' : formatINR(s.taxInSlab)}
                           </td>
                         </tr>
@@ -840,25 +796,12 @@ const TaxScreen = ({ profile }) => {
 
                     if (isRebate) {
                       return (
-                        <tr key={idx} style={{
-                          borderBottom: '1px solid rgba(16, 185, 129, 0.2)',
-                          background: 'rgba(16, 185, 129, 0.08)'
-                        }}>
-                          <td colSpan={2} style={{
-                            padding: '14px 8px',
-                            fontWeight: 800,
-                            color: '#34d399'
-                          }}>{s.label}</td>
-                          <td style={{ padding: '14px 8px', color: '#34d399', fontSize: '0.78rem' }}>
+                        <tr key={idx} className="tax-slabs-row tax-slabs-row--rebate">
+                          <td colSpan={2}>{s.label}</td>
+                          <td style={{ fontSize: '0.78rem' }}>
                             Government waives your tax
                           </td>
-                          <td style={{
-                            padding: '14px 8px',
-                            textAlign: 'right',
-                            fontWeight: 700,
-                            fontVariantNumeric: 'tabular-nums',
-                            color: '#34d399'
-                          }}>
+                          <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                             - {formatINR(Math.abs(s.taxInSlab))}
                           </td>
                         </tr>
@@ -867,22 +810,18 @@ const TaxScreen = ({ profile }) => {
 
                     // Regular slab row
                     return (
-                      <tr key={idx} style={{
-                        borderBottom: '1px solid rgba(255,255,255,0.04)',
-                        background: s.taxableInSlab > 0 ? 'rgba(56,189,248,0.02)' : 'transparent'
-                      }}>
-                        <td style={{ padding: '14px 8px', fontWeight: 600, color: '#fff' }}>
+                      <tr key={idx} className={`tax-slabs-row ${s.taxableInSlab > 0 ? 'tax-slabs-row--active' : ''}`}>
+                        <td style={{ fontWeight: 600 }}>
                           {s.label}
-                          {s.rate === 0 && <span style={{ display: 'block', fontSize: '0.72rem', color: '#34d399', fontWeight: 400, marginTop: 2 }}>Tax free!</span>}
+                          {s.rate === 0 && <span className="tax-slab-free-label">Tax free!</span>}
                         </td>
-                        <td style={{ padding: '14px 8px', color: s.rate === 0 ? '#34d399' : '#cbd5e1' }}>
+                        <td style={{ color: s.rate === 0 ? '#34d399' : '#cbd5e1' }}>
                           {s.rate === 0 ? 'FREE' : `${s.rate}%`}
                         </td>
-                        <td style={{ padding: '14px 8px', color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                        <td style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {formatINR(s.taxableInSlab)}
                         </td>
                         <td style={{
-                          padding: '14px 8px',
                           textAlign: 'right',
                           fontWeight: 700,
                           fontVariantNumeric: 'tabular-nums',
@@ -898,16 +837,7 @@ const TaxScreen = ({ profile }) => {
 
               {/* Beginner-friendly rebate explanation */}
               {activeSlabs.some(s => s.isRebateRow) && (
-                <div style={{
-                  marginTop: 16,
-                  padding: '14px 16px',
-                  background: 'rgba(16, 185, 129, 0.06)',
-                  border: '1px solid rgba(16, 185, 129, 0.2)',
-                  borderRadius: 12,
-                  fontSize: '0.82rem',
-                  color: '#a7f3d0',
-                  lineHeight: 1.6
-                }}>
+                <div className="tax-rebate-explainer">
                   <strong style={{ color: '#34d399' }}>What does this mean?</strong><br/>
                   The government gives a <strong>tax rebate</strong> (a full discount) to people earning up to {regime === 'new' ? '₹12 Lakh' : '₹5 Lakh'} in taxable income.
                   Even though your income falls into taxable ranges, the government waives all the tax — so <strong>you pay ₹0 in tax!</strong>
@@ -916,40 +846,37 @@ const TaxScreen = ({ profile }) => {
             </div>
 
             {/* Smart Insights Panel */}
-            <div style={{
-              background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.7))',
-              border: '1px solid rgba(255,255,255,0.06)', borderRadius: 20, padding: 24, display: 'flex', flexDirection: 'column'
-            }}>
-              <h3 style={{ margin: '0 0 16px 0', fontSize: '1.05rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="tax-insights-panel">
+              <h3 className="tax-insights-header">
                 <Sparkles size={18} color="#fbbf24" />
                 Helpful Insights
               </h3>
-              <div className="tax-insight-items" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div className="tax-insight-item" style={{ display: 'flex', gap: 14, padding: 12 }}>
-                  <div className="tax-insight-icon" style={{ background: 'rgba(56,189,248,0.1)', color: '#38bdf8', padding: 8, borderRadius: 10, display: 'flex', alignItems: 'center' }}><IndianRupee size={16} /></div>
+              <div className="tax-insight-items">
+                <div className="tax-insight-item">
+                  <div className="tax-insight-icon tax-insight-icon-blue"><IndianRupee size={16} /></div>
                   <div>
-                    <div style={{ fontWeight: 700, color: '#fff', fontSize: '0.85rem' }}>Monthly Tax from Salary</div>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: 2 }}>
+                    <div className="tax-insight-title">Monthly Tax from Salary</div>
+                    <div className="tax-insight-desc">
                       About {formatINR(Math.round(totalTax / 12))}/month will be deducted from your salary as <JargonTooltip term="TDS">TDS</JargonTooltip>.
                     </div>
                   </div>
                 </div>
 
-                <div className="tax-insight-item" style={{ display: 'flex', gap: 14, padding: 12 }}>
-                  <div className="tax-insight-icon" style={{ background: 'rgba(139,92,246,0.1)', color: '#a78bfa', padding: 8, borderRadius: 10, display: 'flex', alignItems: 'center' }}><TrendingDown size={16} /></div>
+                <div className="tax-insight-item">
+                  <div className="tax-insight-icon tax-insight-icon-purple"><TrendingDown size={16} /></div>
                   <div>
-                    <div style={{ fontWeight: 700, color: '#fff', fontSize: '0.85rem' }}>What You Take Home</div>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: 2 }}>
+                    <div className="tax-insight-title">What You Take Home</div>
+                    <div className="tax-insight-desc">
                       About {formatINR(Math.round((annualIncome - totalTax) / 12))}/month in your bank account after tax.
                     </div>
                   </div>
                 </div>
 
-                <div className="tax-insight-item" style={{ display: 'flex', gap: 14, padding: 12 }}>
-                  <div className="tax-insight-icon" style={{ background: 'rgba(16,185,129,0.1)', color: '#34d399', padding: 8, borderRadius: 10, display: 'flex', alignItems: 'center' }}><Info size={16} /></div>
+                <div className="tax-insight-item">
+                  <div className="tax-insight-icon tax-insight-icon-green"><Info size={16} /></div>
                   <div>
-                    <div style={{ fontWeight: 700, color: '#fff', fontSize: '0.85rem' }}>Extra Charges on Tax</div>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: 2 }}>
+                    <div className="tax-insight-title">Extra Charges on Tax</div>
+                    <div className="tax-insight-desc">
                       {serverTaxData?.new_regime.marginal_relief_applied || serverTaxData?.old_regime.marginal_relief_applied 
                         ? `Marginal relief has been dynamically applied by server: ${formatINR(serverTaxData?.new_regime.marginal_relief_applied ? serverTaxData.new_regime.marginal_relief_amount : serverTaxData.old_regime.marginal_relief_amount)} saved.`
                         : "A small 4% extra charge (called 'cess') is added on top of your tax - it funds healthcare and education."}
@@ -957,11 +884,11 @@ const TaxScreen = ({ profile }) => {
                   </div>
                 </div>
 
-                <div className="tax-insight-item" style={{ display: 'flex', gap: 14, padding: 12 }}>
-                  <div className="tax-insight-icon" style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', padding: 8, borderRadius: 10, display: 'flex', alignItems: 'center' }}><HelpCircle size={16} /></div>
+                <div className="tax-insight-item">
+                  <div className="tax-insight-icon tax-insight-icon-yellow"><HelpCircle size={16} /></div>
                   <div>
-                    <div style={{ fontWeight: 700, color: '#fff', fontSize: '0.85rem' }}>Automatic Tax-Free Amount</div>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: 2 }}>
+                    <div className="tax-insight-title">Automatic Tax-Free Amount</div>
+                    <div className="tax-insight-desc">
                       The government automatically exempts <strong>{formatINR(standardDeduction)}</strong> of your income from tax - no paperwork needed!
                     </div>
                   </div>
@@ -980,7 +907,7 @@ const TaxScreen = ({ profile }) => {
               transition={{ delay: 0.3 }}
             >
               <h3>Old vs New Regime - Which Costs Less?</h3>
-              <div style={{ width: '100%', height: 300 }} className="tax-bar-chart-glow">
+              <div className="tax-bar-chart-container tax-bar-chart-glow">
                 <ResponsiveContainer>
                   <BarChart data={regimeChartData} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
                     <defs>
@@ -1011,7 +938,7 @@ const TaxScreen = ({ profile }) => {
             <div className="tax-chart-wrapper">
               <h3>Before vs After Tax-Saving Investments</h3>
               {totalTax > 0 && regime === 'old' && potentialSaving > 0 ? (
-                <div style={{ width: '100%', height: 300 }} className="tax-bar-chart-glow">
+                <div className="tax-bar-chart-container tax-bar-chart-glow">
                   <ResponsiveContainer>
                     <BarChart data={optimizationChartData} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
                       <defs>
@@ -1037,8 +964,8 @@ const TaxScreen = ({ profile }) => {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '0.9rem', textAlign: 'center', padding: '0 20px', minHeight: 300 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <div className="tax-chart-placeholder">
+                  <div className="tax-chart-placeholder-content">
                     <Info size={36} color="#475569" />
                     Tax-saving deductions only apply in the Old Regime. In the New Regime, you get lower tax rates instead - no need to make special investments.
                   </div>
@@ -1082,28 +1009,68 @@ const TaxScreen = ({ profile }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          style={{ marginTop: 24 }}
+          style={{ marginTop: 32 }}
         >
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
             <PiggyBank size={22} color="#34d399" />
             Smart Ways to Save on Taxes
           </h3>
           <div className="tax-recs-grid">
-            {taxSavingRecs.map((rec, i) => (
-              <motion.div 
-                key={rec.id + rec.section} 
-                className="tax-rec-card"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.5 + (i * 0.05) }}
-                whileHover={{ y: -4, scale: 1.01 }}
-              >
-                <div className="tax-rec-name" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#fff' }}>{rec.name}</div>
-                <div className="tax-rec-section">Saves tax under Section {rec.section}</div>
-                <div className="tax-rec-amount" style={{ fontSize: '1.1rem', fontWeight: 900, color: '#f8fafc', margin: '14px 0 6px' }}>Limit: up to {formatINR(rec.suggestedAmount)}</div>
-                <div className="tax-rec-return" style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Expected growth: {Number(rec.expected_return_min).toFixed(0)}% - {Number(rec.expected_return_max).toFixed(0)}% per year</div>
-              </motion.div>
-            ))}
+            {taxSavingRecs.map((rec, i) => {
+              const getInstrumentIcon = (name) => {
+                const n = name.toLowerCase();
+                if (n.includes('bond')) return <Landmark size={18} />;
+                if (n.includes('provident') || n.includes('epf') || n.includes('vpf')) return <PiggyBank size={18} />;
+                if (n.includes('insurance') || n.includes('ulip') || n.includes('linked') || n.includes('endowment')) return <Heart size={18} />;
+                if (n.includes('elss') || n.includes('saver') || n.includes('mutual')) return <Coins size={18} />;
+                if (n.includes('pension') || n.includes('nps')) return <ShieldCheck size={18} />;
+                return <Wallet size={18} />;
+              };
+
+              return (
+                <motion.div 
+                  key={rec.id + rec.section} 
+                  className="tax-rec-card"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5 + (i * 0.05) }}
+                  whileHover={{ y: -6, scale: 1.01 }}
+                  onClick={() => onLearnMore && onLearnMore(rec)}
+                  style={{ cursor: onLearnMore ? 'pointer' : 'default' }}
+                >
+                  <div className="tax-rec-card-glow" />
+                  <div className="tax-rec-card-header">
+                    <div className="tax-rec-icon-wrapper">
+                      {getInstrumentIcon(rec.name)}
+                    </div>
+                    <span className="tax-rec-badge">
+                      Section {rec.section}
+                    </span>
+                  </div>
+                  
+                  <h4 className="tax-rec-name">{rec.name}</h4>
+                  
+                  <div className="tax-rec-stats">
+                    <div className="tax-rec-stat">
+                      <span className="tax-rec-stat-label">Investment Limit</span>
+                      <span className="tax-rec-stat-value">{formatINR(rec.suggestedAmount)}</span>
+                    </div>
+                    <div className="tax-rec-stat">
+                      <span className="tax-rec-stat-label">Expected Return</span>
+                      <span className="tax-rec-stat-value text-green">
+                        {Number(rec.expected_return_min).toFixed(0)}% - {Number(rec.expected_return_max).toFixed(0)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="tax-rec-footer">
+                    <span className="tax-rec-explore-btn">
+                      Explore Details <ArrowUpRight size={14} style={{ transition: 'transform 0.2s ease' }} />
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </motion.div>
       )}

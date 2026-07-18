@@ -229,6 +229,26 @@ export const JARGON = {
     short: 'Likelihood of achieving your goal',
     plain: 'The percentage chance of meeting your target amount by the deadline, calculated using thousands of simulated market paths.',
   },
+  'P10': {
+    short: 'Weak Market Scenario',
+    plain: 'A conservative estimate showing what your portfolio value could be in a poor market environment. There is a 90% chance your actual wealth will exceed this amount.',
+  },
+  'P50': {
+    short: 'Typical Market Scenario',
+    plain: 'The median estimate showing your projected wealth in a normal, average market environment. There is a 50% chance of exceeding or falling short of this amount.',
+  },
+  'P90': {
+    short: 'Strong Market Scenario',
+    plain: 'An optimistic estimate showing your wealth in a very strong bull market. There is only a 10% chance of exceeding this amount, so treat it as a best-case forecast.',
+  },
+  'Standard Deviation': {
+    short: 'Historical volatility / typical variance',
+    plain: 'A statistical measure of how much an investment\'s returns fluctuate from its average. Higher standard deviation means more dramatic ups and downs.',
+  },
+  'Standard Error': {
+    short: 'Forecast range uncertainty',
+    plain: 'A measure of the uncertainty in our mathematical projection. A smaller standard error means our simulations are more precise and reliable.',
+  },
   'Monte Carlo': {
     short: 'Market simulator',
     plain: 'A statistical technique that runs 1,000+ simulations of different market ups and downs to show the range of possible future values for your investments.',

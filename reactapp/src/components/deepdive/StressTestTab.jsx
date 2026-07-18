@@ -8,10 +8,13 @@ import { formatINR } from '../../utils/indianNumberFormat';
 
 const StressTestTab = ({ inv, stressTestAmount, setStressTestAmount }) => {
   const cat = (inv.category || '').toLowerCase();
-  const isEquity = cat === 'equity' || cat === 'hybrid';
-  const isDebt = cat === 'debt' || cat === 'fixed income';
-  const isGovt = cat === 'government';
-  const isGold = (inv.name || '').toLowerCase().includes('gold');
+  const id = (inv.id || '').toLowerCase();
+  const name = (inv.name || '').toLowerCase();
+
+  const isGold = name.includes('gold') || id.includes('gold') || id === 'sgb' || id.includes('sgb_');
+  const isGovt = cat.includes('government') || cat.includes('sovereign') || ['ppf', 'scss', 'sukanya', 'nsc', 'kvp', 'pomis', 'mssc', 'apy'].includes(id);
+  const isDebt = cat.includes('debt') || cat.includes('deposit') || cat.includes('bond') || name.includes('bond') || id.endsWith('_fd') || id === 'fd' || id === 'po_rd' || id === 'po_td_1yr';
+  const isReit = cat.includes('reit') || cat.includes('invit');
 
   const crashScenarios = isGold ? [
     { name: '2013 Gold Crash', period: 'Apr 2013 – Dec 2015', drop: -26, recovery: '~6 years', recoveryMultiplier: 1.0, cause: 'Fed taper tantrum, strong dollar, India import duty hikes to 10%' },
@@ -23,6 +26,9 @@ const StressTestTab = ({ inv, stressTestAmount, setStressTestAmount }) => {
     { name: '2008 Credit Crisis', period: 'Sep 2008 – Mar 2009', drop: -5, recovery: '4-6 months', recoveryMultiplier: 1.02, cause: 'Global credit freeze, sharp bond yield spike, FII outflows' },
     { name: '2020 Franklin Templeton', period: 'Apr 2020', drop: -4, recovery: 'Capital locked 2-3 yrs', recoveryMultiplier: 1.10, cause: '6 debt schemes wound up due to illiquidity; investors got 107-113% back eventually' },
     { name: '2022 Rising Rates', period: 'Apr 2022 – Oct 2022', drop: -3, recovery: '5 months', recoveryMultiplier: 1.01, cause: 'RBI hiked repo rate by 250 bps, global bond selloff' },
+  ] : isReit ? [
+    { name: '2020 COVID Vacancy Shock', period: 'Mar 2020 – Oct 2020', drop: -18, recovery: '12 months', recoveryMultiplier: 1.05, cause: 'Work-from-home sentiment, commercial leasing pause, broad REIT sell-off' },
+    { name: '2022 Rate Hike Impact', period: 'Apr 2022 – Dec 2022', drop: -10, recovery: '8 months', recoveryMultiplier: 1.02, cause: 'Rising cost of capital, yields on government bonds rose making REIT yields less attractive' },
   ] : [
     { name: '2008 Global Financial Crisis', period: 'Jan 2008 – Mar 2009', drop: -60, recovery: '~60 months', recoveryMultiplier: 1.02, cause: 'Lehman Brothers collapse, global recession, Nifty fell from 6,357 to 2,524' },
     { name: '2020 COVID-19 Crash', period: 'Feb 2020 – Mar 2020', drop: -38, recovery: '~9 months', recoveryMultiplier: 1.04, cause: 'Pandemic lockdowns, global panic selling, Nifty fell from 12,430 to 7,511' },

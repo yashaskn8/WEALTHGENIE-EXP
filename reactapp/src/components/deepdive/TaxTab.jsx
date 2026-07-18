@@ -70,21 +70,43 @@ function getTaxInfo(inv) {
       stcg: 'STCG taxed at slab rate.',
       specialNote: 'Physical gold also attracts 3% GST on purchase + making charges. Gold ETFs avoid these costs.' };
   }
-  if (cat === 'equity' || cat === 'hybrid') {
+  if (cat.includes('equity') || cat.includes('hybrid') || cat.includes('etf') || name.includes('etf') || cat.includes('direct')) {
     return { ...base,
       ltcg: `LTCG above ₹1.25 Lakh taxed at 12.5% (held >1 year). Budget 2024 raised this from ₹1L to ₹1.25L and rate from 10% to 12.5%.`,
       stcg: 'STCG (held <1 year) taxed at 20% flat (increased from 15% in Budget 2024).',
       specialNote: 'Equity MFs held >1 year get the ₹1.25L annual LTCG exemption. SIP units are individually tracked for holding period.' };
   }
-  if (cat === 'debt') {
+  if (cat.includes('reit') || cat.includes('invit')) {
+    return { ...base,
+      ltcg: 'LTCG above ₹1.25 Lakh taxed at 12.5% (held >1 year, listed units). Dividend/distribution income taxed at slab rate.',
+      stcg: 'STCG (held <1 year) taxed at 20% flat. Distributions are taxed as per the nature of income (interest, dividend, or capital repayment).',
+      specialNote: 'REIT/InvIT distributions have mixed tax treatment — interest component is taxed at slab, dividend at 10% TDS, and capital repayment reduces cost basis.' };
+  }
+  if (cat.includes('debt') || cat.includes('deposit') || cat.includes('bond') || name.includes('bond')) {
     return { ...base,
       ltcg: 'No LTCG benefit since April 2023. All gains (regardless of holding period) taxed at slab rate. Indexation benefit removed.',
       stcg: 'All gains taxed at slab rate — no distinction between short/long term.',
       specialNote: 'Post-April 2023, debt MFs lost their indexation advantage over FDs. They are now taxed identically to bank FDs.' };
   }
+  if (cat.includes('insurance')) {
+    return { ...base,
+      taxBenefit: true, section: '80C', maxDeduction: '₹1,50,000',
+      ltcg: 'Maturity proceeds are tax-free under Section 10(10D) if annual premium is ≤ ₹5L (Budget 2023 cap). Premium qualifies for 80C deduction.',
+      stcg: 'Surrender before maturity: taxable at slab rate after deducting premiums paid.',
+      specialNote: 'ULIPs with premium >₹2.5L/year are now taxed as capital gains (Budget 2021). Endowment/traditional plans retain 10(10D) exemption if premium ≤ 10% of sum assured.' };
+  }
+  if (cat.includes('retirement') || name.includes('epf') || name.includes('vpf')) {
+    const isEPF = name.includes('epf') || name.includes('vpf') || name.includes('provident');
+    if (isEPF) {
+      return { ...base, taxBenefit: true, section: '80C', taxFreeInterest: true, maxDeduction: '₹1,50,000',
+        ltcg: 'Fully exempt (EEE) if employee contribution ≤ ₹2.5L/year. Interest on excess is taxable (Budget 2021).',
+        stcg: 'Premature withdrawal after 5 years of service is tax-free. Before 5 years: employer contribution + interest taxed at slab rate.',
+        specialNote: 'EPF interest rate: 8.25% (FY2025-26). VPF allows voluntary contributions above 12% — same EEE benefit up to ₹2.5L/year limit.' };
+    }
+  }
   return { ...base,
-    ltcg: inv.category === 'Equity' ? 'Gains above ₹1.25L taxed at 12.5% (held >1 year)' : 'Taxed as per income slab',
-    stcg: inv.category === 'Equity' ? 'Taxed at 20% (held <1 year)' : 'Taxed as per income slab',
+    ltcg: cat.includes('equity') || cat.includes('etf') ? 'Gains above ₹1.25L taxed at 12.5% (held >1 year)' : 'Taxed as per income slab',
+    stcg: cat.includes('equity') || cat.includes('etf') ? 'Taxed at 20% (held <1 year)' : 'Taxed as per income slab',
   };
 }
 

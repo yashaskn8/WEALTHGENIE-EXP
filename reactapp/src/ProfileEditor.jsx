@@ -50,13 +50,7 @@ const ProfileEditor = ({ userProfile, onProfileUpdate }) => {
     { key: 'risk_appetite', label: 'Risk Category', icon: <Scale size={20} color="#fbbf24" />, type: 'risk', help: 'Your comfort with short-term market ups and downs.' },
     { key: 'taxRegime', label: 'Tax Regime', icon: <Banknote size={20} color="#a78bfa" />, type: 'regime', help: 'Old vs New tax regimes used to estimate post-tax returns.' },
     { key: 'investment_goals', label: 'Investment Goals', icon: <Target size={20} color="#fb7185" />, type: 'goals', help: 'The main reasons why you are building wealth.' },
-    { key: 'investment_horizon', label: 'Investment Horizon', icon: <Telescope size={20} color="#a78bfa" />, type: 'slider', min: 1, max: 30, suffix: ' years', help: 'Number of years you plan to keep this money growing.' },
-    { key: 'liquid_savings', label: 'Liquid Savings', icon: <Wallet size={20} color="#34d399" />, type: 'currency', min: 0, max: 1000000000, help: 'Your total liquid savings in cash / bank accounts.' },
-    { key: 'existing_debt', label: 'Debt EMI Burden (%)', icon: <Scale size={20} color="#f43f5e" />, type: 'number', min: 0, max: 100, help: 'Percentage of monthly income spent on debt EMIs.' },
-    { key: 'dependents', label: 'Dependents', icon: <Clock size={20} color="#38bdf8" />, type: 'number', min: 0, max: 15, help: 'Number of people dependent on your income.' },
-    { key: 'emergency_fund_months', label: 'Emergency Fund (Months)', icon: <Telescope size={20} color="#34d399" />, type: 'number', min: 0, max: 120, help: 'Months of living expenses currently saved in emergency fund.' },
-    { key: 'risk_tolerance', label: 'Stated Risk Tolerance', icon: <Scale size={20} color="#fbbf24" />, type: 'tolerance', help: 'Self-declared comfort level with market volatility.' },
-    { key: 'goal_type', label: 'Primary Goal Type', icon: <Target size={20} color="#fb7185" />, type: 'goaltype', help: 'Your primary investment goal.' }
+    { key: 'investment_horizon', label: 'Investment Horizon', icon: <Telescope size={20} color="#a78bfa" />, type: 'slider', min: 1, max: 30, suffix: ' years', help: 'Number of years you plan to keep this money growing.' }
   ];
 
   const handleEdit = () => {
@@ -240,36 +234,6 @@ const ProfileEditor = ({ userProfile, onProfileUpdate }) => {
       );
     }
 
-    if (field.type === 'goaltype') {
-      const options = [
-        { val: 'retirement', label: 'Retirement' },
-        { val: 'house purchase', label: 'House Purchase' },
-        { val: 'education', label: 'Education' },
-        { val: 'wealth-building', label: 'Wealth Building' }
-      ];
-      return (
-        <select
-          value={val || 'wealth-building'}
-          onChange={e => setDraft(prev => ({ ...prev, goal_type: e.target.value }))}
-          style={{
-            background: 'rgba(15, 23, 42, 0.6)',
-            border: '1px solid rgba(56, 189, 248, 0.3)',
-            borderRadius: 10,
-            padding: '10px 14px',
-            color: '#f8fafc',
-            fontSize: '1.05rem',
-            fontWeight: 600,
-            fontFamily: 'inherit',
-            outline: 'none',
-            width: '100%',
-          }}
-        >
-          {options.map(opt => (
-            <option key={opt.val} value={opt.val} style={{ background: '#0f172a' }}>{opt.label}</option>
-          ))}
-        </select>
-      );
-    }
 
     if (field.type === 'regime') {
       const regimes = ['old', 'new'];

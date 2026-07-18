@@ -33,11 +33,11 @@ const ProfilePage = ({ onCompleteProfile, children }) => {
   const [taxRegime, setTaxRegime] = useState(savedProfile?.taxRegime || 'new');
   const [profileId, setProfileId] = useState(savedProfile?.profileId || null);
 
-  // New fields:
-  const [liquidSavings, setLiquidSavings] = useState(savedProfile?.liquid_savings || 50000);
-  const [existingDebt, setExistingDebt] = useState(savedProfile?.existing_debt || 10);
-  const [dependents, setDependents] = useState(savedProfile?.dependents || 1);
-  const [emergencyFundMonths, setEmergencyFundMonths] = useState(savedProfile?.emergency_fund_months || 3);
+  // New fields (hidden/safe default values for backward compatibility):
+  const [liquidSavings, setLiquidSavings] = useState(savedProfile?.liquid_savings !== undefined ? savedProfile.liquid_savings : 0);
+  const [existingDebt, setExistingDebt] = useState(savedProfile?.existing_debt !== undefined ? savedProfile.existing_debt : 0);
+  const [dependents, setDependents] = useState(savedProfile?.dependents !== undefined ? savedProfile.dependents : 0);
+  const [emergencyFundMonths, setEmergencyFundMonths] = useState(savedProfile?.emergency_fund_months !== undefined ? savedProfile.emergency_fund_months : 0);
   const [riskTolerance, setRiskTolerance] = useState(savedProfile?.risk_tolerance || 'Moderate');
   const [goalType, setGoalType] = useState(savedProfile?.goal_type || 'wealth-building');
 
@@ -293,115 +293,6 @@ const ProfilePage = ({ onCompleteProfile, children }) => {
               </div>
             </div>
 
-            {/* Row 5: Liquid Savings & Existing Debt */}
-            <div className="pf-grid-2" style={{ marginTop: 20 }}>
-              <div className="pf-field">
-                <label>Existing Liquid Savings (₹)</label>
-                <div className="pf-input-prefix">
-                  <span className="prefix-symbol">₹</span>
-                  <input 
-                    type="number" 
-                    placeholder="50000" 
-                    value={liquidSavings || ''} 
-                    onChange={e => {
-                      let val = e.target.value.replace(/^0+/, '');
-                      setLiquidSavings(val === '' ? '' : Number(val));
-                    }} 
-                  />
-                </div>
-              </div>
-              <div className="pf-field">
-                <label>Debt EMI Burden (% of Income)</label>
-                <input 
-                  type="number" 
-                  placeholder="10" 
-                  value={existingDebt || ''} 
-                  onChange={e => {
-                    let val = e.target.value.replace(/^0+/, '');
-                    let num = val === '' ? '' : Number(val);
-                    if (num !== '' && num > 100) num = 100;
-                    setExistingDebt(num);
-                  }} 
-                  min="0"
-                  max="100"
-                />
-              </div>
-            </div>
-
-            {/* Row 6: Dependents & Emergency Fund */}
-            <div className="pf-grid-2" style={{ marginTop: 20 }}>
-              <div className="pf-field">
-                <label>Number of Dependents</label>
-                <input 
-                  type="number" 
-                  placeholder="1" 
-                  value={dependents || ''} 
-                  onChange={e => {
-                    let val = e.target.value.replace(/^0+/, '');
-                    setDependents(val === '' ? '' : Number(val));
-                  }} 
-                  min="0"
-                  max="15"
-                />
-              </div>
-              <div className="pf-field">
-                <label>Emergency Fund (Months Saved)</label>
-                <input 
-                  type="number" 
-                  placeholder="3" 
-                  value={emergencyFundMonths || ''} 
-                  onChange={e => {
-                    let val = e.target.value.replace(/^0+/, '');
-                    setEmergencyFundMonths(val === '' ? '' : Number(val));
-                  }} 
-                  min="0"
-                  max="120"
-                />
-              </div>
-            </div>
-
-            {/* Row 7: Self-reported Risk Tolerance & Goal Type */}
-            <div className="pf-grid-2" style={{ marginTop: 20, marginBottom: 20 }}>
-              <div className="pf-field">
-                <label>Stated Risk Tolerance</label>
-                <div className="risk-toggle-group">
-                  {['Conservative', 'Moderate', 'Aggressive'].map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      className={`risk-toggle-btn ${riskTolerance === level ? 'active' : ''}`}
-                      onClick={() => setRiskTolerance(level)}
-                      style={{ fontSize: '0.78rem' }}
-                    >
-                      {level}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="pf-field">
-                <label>Primary Goal Type</label>
-                <select 
-                  value={goalType}
-                  onChange={e => setGoalType(e.target.value)}
-                  style={{
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid rgba(56, 189, 248, 0.3)',
-                    borderRadius: 12,
-                    padding: '12px 14px',
-                    color: '#f8fafc',
-                    fontSize: '1rem',
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    width: '100%',
-                  }}
-                >
-                  <option value="retirement" style={{ background: '#0f172a' }}>Retirement</option>
-                  <option value="house purchase" style={{ background: '#0f172a' }}>House Purchase</option>
-                  <option value="education" style={{ background: '#0f172a' }}>Education</option>
-                  <option value="wealth-building" style={{ background: '#0f172a' }}>Wealth Building</option>
-                </select>
-              </div>
-            </div>
 
             <button type="submit" className="btn-save-continue">
               Save and Continue

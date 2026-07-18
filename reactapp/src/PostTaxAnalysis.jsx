@@ -1,15 +1,16 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import JargonTooltip from './components/JargonTooltip';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { motion } from 'framer-motion';
-import { Scale, Percent, AlertCircle, TrendingUp, TrendingDown, Info, ShieldCheck, PiggyBank } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Scale, Percent, AlertCircle, TrendingUp, TrendingDown, Info, ShieldCheck, PiggyBank, Layers, Award, ChevronDown, ChevronUp, Zap, Eye, EyeOff, ArrowRight, Sparkles, Target, Shield } from 'lucide-react';
 import { computeRealReturn } from './utils/postTaxEngine';
 import { formatINR, getMarginalRate, computePostTaxReturn } from './recommendationEngine';
-import './components/TaxScreen.css';
+import './PostTaxAnalysis.css';
 
 const PostTaxAnalysis = ({ profile, recommendations }) => {
   const regime = profile?.taxRegime || 'new';
   const inflationRate = 6.0;
+  const [showBreakdown, setShowBreakdown] = useState(true);
 
   // 1. Calculate Marginal Tax Rate
   const { marginalRate, effectiveRate } = useMemo(() => {
@@ -107,9 +108,6 @@ const PostTaxAnalysis = ({ profile, recommendations }) => {
       const profileWithRegime = { ...profile, taxRegime: regime };
       const ptResult = computePostTaxReturn(inv, annualSavings, annualIncome, profileWithRegime);
       const nominalReturn = inv.nominalReturn !== undefined ? inv.nominalReturn : (inv.expectedReturn || inv.rate || 0);
-      // Always prefer the dynamically computed post-tax rate so this screen
-      // reacts in real-time when the user toggles tax regime or income bracket.
-      // inv.postTaxReturn is a static snapshot from recommendation time — not suitable here.
       const postTaxReturn = ptResult.postTaxRate !== undefined && ptResult.postTaxRate !== null
         ? ptResult.postTaxRate
         : (inv.postTaxReturn !== undefined ? inv.postTaxReturn : nominalReturn);
@@ -181,7 +179,8 @@ const PostTaxAnalysis = ({ profile, recommendations }) => {
       list.push({
         title: 'Optimize Safe Assets',
         body: 'You are in a high tax bracket. Consider routing safe allocations into Arbitrage Funds or PPF instead of bank Fixed Deposits to shield interest from high slab taxes.',
-        icon: <ShieldCheck size={18} color="#38bdf8" />,
+        icon: <ShieldCheck size={18} />,
+        color: 'blue',
       });
     }
 
@@ -189,7 +188,8 @@ const PostTaxAnalysis = ({ profile, recommendations }) => {
       list.push({
         title: 'NPS Tax Break',
         body: 'Claim an additional ₹50,000 deduction under Section 80CCD(1B) by investing in National Pension System (NPS). This growth is largely tax-exempt.',
-        icon: <PiggyBank size={18} color="#a78bfa" />,
+        icon: <PiggyBank size={18} />,
+        color: 'purple',
       });
     }
 
@@ -197,7 +197,8 @@ const PostTaxAnalysis = ({ profile, recommendations }) => {
       list.push({
         title: 'Switch to SGBs',
         body: 'Physical Gold and Gold ETFs attract capital gains tax. Sovereign Gold Bonds (SGB) offer 2.5% annual interest and are 100% tax-free at maturity.',
-        icon: <Scale size={18} color="#f59e0b" />,
+        icon: <Scale size={18} />,
+        color: 'amber',
       });
     }
 
@@ -205,7 +206,8 @@ const PostTaxAnalysis = ({ profile, recommendations }) => {
       list.push({
         title: 'Sustain Allocation',
         body: 'Your portfolio is tax-efficient. Continue systematic contributions to maintain current compounding returns.',
-        icon: <ShieldCheck size={18} color="#34d399" />,
+        icon: <ShieldCheck size={18} />,
+        color: 'green',
       });
     }
 
@@ -214,8 +216,10 @@ const PostTaxAnalysis = ({ profile, recommendations }) => {
 
   if (!profile || !recommendations || !Array.isArray(recommendations) || recommendations.length === 0) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px', color: '#94a3b8', fontSize: '0.95rem' }}>
-        No investment recommendations found. Please set up your financial profile first to calculate your actual returns.
+      <div className="pta-empty-state">
+        <div className="pta-empty-icon"><Target size={48} /></div>
+        <h3>No Recommendations Yet</h3>
+        <p>Set up your financial profile to see your actual returns after tax and inflation.</p>
       </div>
     );
   }
@@ -224,319 +228,324 @@ const PostTaxAnalysis = ({ profile, recommendations }) => {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.08,
-        delayChildren: 0.05
-      }
+      transition: { staggerChildren: 0.06, delayChildren: 0.04 }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 120, damping: 18 } }
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 100, damping: 16 } }
   };
 
+  const getTaxBadgeClass = (taxType) => {
+    const t = taxType.toLowerCase();
+    if (t.includes('eee') || t.includes('free')) return 'pta-badge--green';
+    if (t.includes('slab')) return 'pta-badge--red';
+    if (t.includes('equity') || t.includes('elss') || t.includes('gains') || t.includes('capital')) return 'pta-badge--purple';
+    if (t.includes('retirement') || t.includes('nps')) return 'pta-badge--blue';
+    if (t.includes('gold') || t.includes('sgb')) return 'pta-badge--amber';
+    return 'pta-badge--default';
+  };
+
+  const barColors = ['#38bdf8', '#c084fc', '#34d399', '#fbbf24', '#fb7185', '#f472b6'];
+
   return (
-    <motion.div 
-      className="tax-page" 
-      style={{ maxWidth: 1400, margin: '0 auto', padding: '32px 16px 80px', position: 'relative' }}
+    <motion.div
+      className="pta-root"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
     >
-      <div className="tax-bg-orb tax-bg-orb--1" />
-      <div className="tax-bg-orb tax-bg-orb--2" />
+      {/* Ambient background */}
+      <div className="pta-bg-glow pta-bg-glow--1" />
+      <div className="pta-bg-glow pta-bg-glow--2" />
+      <div className="pta-bg-glow pta-bg-glow--3" />
 
-      <motion.header 
-        style={{ marginBottom: 36, textAlign: 'left', paddingLeft: 12 }}
-        variants={itemVariants}
-      >
-        <div className="tax-page-badge" style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.2)', color: '#c084fc', padding: '5px 14px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase' }}>
-          <Scale size={12} style={{ marginRight: 6 }} />
+      {/* ═══════ HEADER ═══════ */}
+      <motion.header className="pta-header" variants={itemVariants}>
+        <div className="pta-header-badge">
+          <Sparkles size={13} />
           Tax & Inflation Engine
         </div>
-        <h1 className="tax-page-title" style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: 14, fontSize: '2.4rem', fontWeight: 900, background: 'linear-gradient(135deg, #ffffff 0%, #a855f7 60%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-1.2px' }}>
+        <h1 className="pta-header-title">
           Actual Returns Summary
         </h1>
-        <p className="tax-page-subtitle" style={{ textAlign: 'left', fontSize: '0.92rem', color: '#64748b', marginTop: 8, maxWidth: '640px', margin: '8px 0 0', lineHeight: '1.5' }}>
-          Visualizing your true growth rates and profit retention after subtracting Indian tax laws and the eroding effect of inflation.
+        <p className="pta-header-subtitle">
+          Your true growth after Indian tax laws & {inflationRate}% inflation drag
         </p>
       </motion.header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '28px' }} className="tax-dashboard-responsive-grid">
-        <style>{`
-          @media (min-width: 1025px) {
-            .tax-dashboard-responsive-grid {
-              grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) !important;
-            }
-          }
-          .glass-panel {
-            background: linear-gradient(165deg, rgba(10, 18, 36, 0.45) 0%, rgba(5, 9, 20, 0.6) 100%) !important;
-            backdrop-filter: blur(24px) saturate(180%) !important;
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
-            border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-            border-radius: 20px !important;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
-          }
-          .circle-progress-container {
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 120px;
-            height: 120px;
-          }
-          .circle-progress-center {
-            position: absolute;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-          }
-          .insight-list-item {
-            display: flex;
-            gap: 12px;
-            padding: 14px 16px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-          }
-          .insight-list-item:hover {
-            background: rgba(255, 255, 255, 0.04);
-            border-color: rgba(255, 255, 255, 0.06);
-            transform: translateX(3px);
-          }
-        `}</style>
+      {/* ═══════ HERO KPI STRIP ═══════ */}
+      <motion.div className="pta-kpi-strip" variants={itemVariants}>
+        <div className="pta-kpi-card pta-kpi-card--regime">
+          <div className="pta-kpi-icon-wrap pta-kpi-icon--blue">
+            <Layers size={18} />
+          </div>
+          <div className="pta-kpi-content">
+            <span className="pta-kpi-label">Tax Regime</span>
+            <span className="pta-kpi-value">{regime === 'new' ? 'New System' : 'Old System'}</span>
+          </div>
+        </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-          <motion.div 
-            className="glass-panel" 
-            variants={itemVariants}
-            style={{ padding: '24px 28px' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div className="pta-kpi-divider" />
+
+        <div className="pta-kpi-card pta-kpi-card--bracket">
+          <div className="pta-kpi-icon-wrap pta-kpi-icon--purple">
+            <Award size={18} />
+          </div>
+          <div className="pta-kpi-content">
+            <span className="pta-kpi-label">Max Tax Bracket</span>
+            <span className="pta-kpi-value">{(marginalRate * 100).toFixed(0)}%</span>
+          </div>
+        </div>
+
+        <div className="pta-kpi-divider" />
+
+        <div className="pta-kpi-card pta-kpi-card--inflation">
+          <div className="pta-kpi-icon-wrap pta-kpi-icon--amber">
+            <TrendingDown size={18} />
+          </div>
+          <div className="pta-kpi-content">
+            <span className="pta-kpi-label">Inflation Rate</span>
+            <span className="pta-kpi-value">{inflationRate}%</span>
+          </div>
+        </div>
+
+        <div className="pta-kpi-divider" />
+
+        <div className="pta-kpi-card pta-kpi-card--erosion">
+          <div className="pta-kpi-icon-wrap pta-kpi-icon--rose">
+            <AlertCircle size={18} />
+          </div>
+          <div className="pta-kpi-content">
+            <span className="pta-kpi-label">Total Tax Drag</span>
+            <span className="pta-kpi-value pta-kpi-value--rose">{formatINR(totalTaxDragRupees)}</span>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ═══════ MAIN GRID ═══════ */}
+      <div className="pta-main-grid">
+        {/* ─── LEFT COLUMN ─── */}
+        <div className="pta-col">
+          {/* Chart Card */}
+          <motion.div className="pta-card" variants={itemVariants}>
+            <div className="pta-card-header">
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', margin: 0 }}>
-                  Return Drag Comparison
-                </h3>
-                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 0 0' }}>
-                  Comparing the direct impact of taxation and standard 6.0% inflation on nominal returns.
-                </p>
+                <h3 className="pta-card-title">Return Drag Comparison</h3>
+                <p className="pta-card-subtitle">Before Tax → After Tax → Real (inflation-adjusted)</p>
               </div>
             </div>
 
-            <div style={{ height: 350 }}>
+            <div className="pta-chart-wrap">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={postTaxData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                   <defs>
-                    <linearGradient id="colorNominal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#38bdf8" stopOpacity={1}/>
-                      <stop offset="100%" stopColor="#0284c7" stopOpacity={0.7}/>
+                    <linearGradient id="gradNominal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.95}/>
+                      <stop offset="100%" stopColor="#0284c7" stopOpacity={0.6}/>
                     </linearGradient>
-                    <linearGradient id="colorPostTax" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#c084fc" stopOpacity={1}/>
-                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.7}/>
+                    <linearGradient id="gradPostTax" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#c084fc" stopOpacity={0.95}/>
+                      <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.6}/>
                     </linearGradient>
-                    <linearGradient id="colorReal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#34d399" stopOpacity={1}/>
-                      <stop offset="100%" stopColor="#059669" stopOpacity={0.7}/>
+                    <linearGradient id="gradReal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#34d399" stopOpacity={0.95}/>
+                      <stop offset="100%" stopColor="#059669" stopOpacity={0.6}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} />
-                  <Tooltip 
-                    cursor={{ fill: 'rgba(255,255,255,0.02)' }} 
-                    contentStyle={{ background: 'rgba(8, 14, 28, 0.95)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 12, color: '#f8fafc', fontSize: '0.85rem' }} 
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} />
+                  <YAxis tick={{ fill: '#475569', fontSize: 11, fontWeight: 500 }} tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(255,255,255,0.03)', radius: 6 }}
+                    contentStyle={{ background: 'rgba(2, 6, 18, 0.96)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: 14, color: '#f8fafc', fontSize: '0.82rem', fontWeight: 600, padding: '12px 16px', boxShadow: '0 16px 48px rgba(0,0,0,0.5)' }}
+                    formatter={(value, name) => [`${Number(value).toFixed(1)}%`, name]}
                   />
-                  <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8' }}/>
-                  <Bar dataKey="nominalReturn" name="Before Tax" fill="url(#colorNominal)" radius={[4,4,0,0]} barSize={20} />
-                  <Bar dataKey="postTaxReturn" name="After-Tax" fill="url(#colorPostTax)" radius={[4,4,0,0]} barSize={20} />
-                  <Bar dataKey="realReturn" name="Real Return" fill="url(#colorReal)" radius={[4,4,0,0]} barSize={20} />
+                  <Legend verticalAlign="top" height={40} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.3px' }}/>
+                  <Bar dataKey="nominalReturn" name="Before Tax" fill="url(#gradNominal)" radius={[6,6,0,0]} barSize={22} />
+                  <Bar dataKey="postTaxReturn" name="After Tax" fill="url(#gradPostTax)" radius={[6,6,0,0]} barSize={22} />
+                  <Bar dataKey="realReturn" name="Real Return" fill="url(#gradReal)" radius={[6,6,0,0]} barSize={22} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </motion.div>
 
-          <motion.div 
-            className="glass-panel" 
-            variants={itemVariants}
-            style={{ overflow: 'hidden' }}
-          >
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>Detailed Rates</h3>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', backgroundColor: 'rgba(255,255,255,0.03)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                Inflation: {inflationRate}%
-              </span>
+          {/* Detailed Rates Table */}
+          <motion.div className="pta-card pta-card--flush" variants={itemVariants}>
+            <div className="pta-table-header" onClick={() => setShowBreakdown(!showBreakdown)} role="button" tabIndex={0}>
+              <div className="pta-table-header-left">
+                <h3 className="pta-card-title">Detailed Breakdown</h3>
+                <span className="pta-table-count">{postTaxData.length} assets</span>
+              </div>
+              <div className="pta-table-header-right">
+                <span className="pta-inflation-chip">
+                  <TrendingDown size={12} /> {inflationRate}% inflation
+                </span>
+                <motion.div
+                  animate={{ rotate: showBreakdown ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="pta-chevron-wrap"
+                >
+                  <ChevronDown size={18} />
+                </motion.div>
+              </div>
             </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="comparison-table" style={{ width: '100%', margin: 0, borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                <thead style={{ background: 'rgba(10, 18, 36, 0.5)' }}>
-                  <tr>
-                    <th style={{ padding: '14px 20px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Asset Name</th>
-                    <th style={{ padding: '14px 20px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tax Type</th>
-                    <th style={{ padding: '14px 20px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Nominal</th>
-                    <th style={{ padding: '14px 20px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Post-Tax</th>
-                    <th style={{ padding: '14px 20px', textAlign: 'left', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Real (Net)</th>
-                    <th style={{ padding: '14px 20px', textAlign: 'right', color: '#64748b', fontWeight: 600, fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Projected Savings</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {postTaxData.map((data, i) => {
-                    return (
-                      <motion.tr 
-                        key={i} 
-                        whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.015)' }}
-                        style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background-color 0.2s ease' }}
-                      >
-                        <td style={{ padding: '16px 20px', fontWeight: 700, color: '#f8fafc' }}>
-                          {data.name} 
-                          <span style={{ fontSize: '0.72rem', color: '#475569', fontWeight: 'normal', display: 'block', marginTop: 3 }}>{data.category}</span>
-                        </td>
-                        <td style={{ padding: '16px 20px', color: '#cbd5e1' }}>
-                          <span style={{ display: 'inline-block', backgroundColor: data.taxType === 'eee' ? 'rgba(52, 211, 153, 0.06)' : 'rgba(255, 255, 255, 0.03)', color: data.taxType === 'eee' ? '#34d399' : '#cbd5e1', padding: '3px 8px', borderRadius: '5px', fontSize: '0.75rem', fontWeight: 500, border: data.taxType === 'eee' ? '1px solid rgba(52, 211, 153, 0.1)' : '1px solid rgba(255, 255, 255, 0.04)' }}>
-                            {data.taxDetails.taxType}
-                          </span>
-                        </td>
-                        <td style={{ padding: '16px 20px', color: '#94a3b8', fontWeight: 600 }}>{data.nominalReturn.toFixed(1)}%</td>
-                        <td style={{ padding: '16px 20px', color: '#c084fc', fontWeight: 700 }}>{data.postTaxReturn.toFixed(1)}%</td>
-                        <td style={{ padding: '16px 20px', color: data.realReturn > 0 ? '#34d399' : '#fb7185', fontWeight: 700 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {data.realReturn > 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-                            {data.realReturn > 0 ? '+' : ''}{data.realReturn.toFixed(1)}%
-                          </div>
-                        </td>
-                        <td style={{ padding: '16px 20px', textAlign: 'right', fontWeight: 800, color: '#38bdf8' }}>
-                          {formatINR(data.wealthGained)}
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+
+            <AnimatePresence>
+              {showBreakdown && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div className="pta-table-scroll">
+                    <table className="pta-table">
+                      <thead>
+                        <tr>
+                          <th className="pta-th--left">Asset</th>
+                          <th className="pta-th--left">Tax Treatment</th>
+                          <th className="pta-th--center">Nominal</th>
+                          <th className="pta-th--center">Post-Tax</th>
+                          <th className="pta-th--center">Real</th>
+                          <th className="pta-th--right">Projected</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {postTaxData.map((data, i) => (
+                          <tr key={i} className="pta-table-row">
+                            <td className="pta-td--asset">
+                              <div className="pta-asset-color" style={{ background: barColors[i % barColors.length] }} />
+                              <div>
+                                <span className="pta-asset-name">{data.name}</span>
+                                <span className="pta-asset-cat">{data.category}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <span className={`pta-badge ${getTaxBadgeClass(data.taxDetails.taxType)}`}>
+                                {data.taxDetails.taxType}
+                              </span>
+                            </td>
+                            <td className="pta-td--mono pta-td--center pta-td--dim">
+                              {data.nominalReturn.toFixed(1)}%
+                            </td>
+                            <td className="pta-td--mono pta-td--center pta-td--purple">
+                              {data.postTaxReturn.toFixed(1)}%
+                            </td>
+                            <td className={`pta-td--mono pta-td--center ${data.realReturn > 0 ? 'pta-td--green' : 'pta-td--rose'}`}>
+                              <span className="pta-real-cell">
+                                {data.realReturn > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                {data.realReturn > 0 ? '+' : ''}{data.realReturn.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="pta-td--mono pta-td--right pta-td--blue pta-td--bold">
+                              {formatINR(data.wealthGained)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-          <motion.div 
-            className="glass-panel" 
-            variants={itemVariants}
-            style={{ padding: '24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}
-          >
-            <div style={{ background: 'rgba(30, 41, 59, 0.2)', border: '1px solid rgba(255, 255, 255, 0.04)', padding: '14px 16px', borderRadius: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                <Percent size={14} color="#38bdf8" /> Regime
-              </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#f8fafc', marginTop: 8, letterSpacing: '-0.3px' }}>
-                {regime === 'new' ? 'New System' : 'Old System'}
-              </div>
-            </div>
+        {/* ─── RIGHT COLUMN ─── */}
+        <div className="pta-col">
+          {/* Profit Retention Efficiency - Hero Widget */}
+          <motion.div className="pta-card pta-retention-hero" variants={itemVariants}>
+            <h3 className="pta-retention-label">Profit Retention Efficiency</h3>
 
-            <div style={{ background: 'rgba(30, 41, 59, 0.2)', border: '1px solid rgba(255, 255, 255, 0.04)', padding: '14px 16px', borderRadius: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                <Percent size={14} color="#c084fc" /> Max Bracket
-              </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#f8fafc', marginTop: 8, letterSpacing: '-0.3px' }}>
-                {(marginalRate * 100).toFixed(0)}%
-              </div>
-            </div>
-          </motion.div>
-
-          <motion.div 
-            className="glass-panel" 
-            variants={itemVariants}
-            style={{ padding: '28px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-            whileHover={{ scale: 1.01 }}
-          >
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '0.8rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Profit Retention Efficiency
-            </h3>
-            
-            <div className="circle-progress-container">
-              <svg width="110" height="110" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="40" stroke="rgba(251, 113, 133, 0.12)" strokeWidth="7" fill="transparent" />
-                <circle 
-                  cx="50" 
-                  cy="50" 
-                  r="40" 
-                  stroke="url(#progressGradient)" 
-                  strokeWidth="7" 
-                  fill="transparent" 
-                  strokeDasharray="251.2" 
-                  strokeDashoffset={strokeDashoffset} 
-                  strokeLinecap="round"
-                  transform="rotate(-90 50 50)"
-                />
+            <div className="pta-donut-container">
+              <svg className="pta-donut-svg" viewBox="0 0 100 100">
                 <defs>
-                  <linearGradient id="progressGradient" x1="0" y1="0" x2="1" y2="1">
+                  <linearGradient id="ptaProgressGrad" x1="0" y1="0" x2="1" y2="1">
                     <stop offset="0%" stopColor="#10b981" />
                     <stop offset="100%" stopColor="#34d399" />
                   </linearGradient>
                 </defs>
+                {/* Background track */}
+                <circle cx="50" cy="50" r="40" className="pta-donut-track" />
+                {/* Eroded portion (red) */}
+                <circle cx="50" cy="50" r="40"
+                  className="pta-donut-eroded"
+                  strokeDasharray="251.2"
+                  strokeDashoffset="0"
+                  transform="rotate(-90 50 50)"
+                />
+                {/* Retained portion (green) */}
+                <circle cx="50" cy="50" r="40"
+                  className="pta-donut-fill"
+                  strokeDasharray="251.2"
+                  strokeDashoffset={strokeDashoffset}
+                  transform="rotate(-90 50 50)"
+                />
               </svg>
-              <div className="circle-progress-center">
-                <span style={{ fontSize: '1.35rem', fontWeight: 900, color: '#10b981', letterSpacing: '-0.5px' }}>
-                  {efficiencyPercent.toFixed(1)}%
-                </span>
-                <span style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, marginTop: 1 }}>
-                  Retained
-                </span>
+
+              <div className="pta-donut-center">
+                <span className="pta-donut-pct">{efficiencyPercent.toFixed(1)}%</span>
+                <span className="pta-donut-sub">RETAINED</span>
               </div>
+
+              {/* Outer glow ring */}
+              <div className="pta-donut-glow" />
             </div>
 
-            <p style={{ margin: '18px 0 0 0', fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.5, fontWeight: 500 }}>
-              For every <strong style={{ color: '#38bdf8' }}>₹1,000</strong> of profits, you keep <strong style={{ color: '#10b981' }}>₹{bottomLineMetrics.keptAmount}</strong>.
-              The remaining <strong style={{ color: '#fb7185' }}>₹{1000 - bottomLineMetrics.keptAmount}</strong> is eroded by inflation ({inflationRate}%) and tax drag.
-            </p>
+            <div className="pta-retention-metrics">
+              <div className="pta-metric-pill pta-metric-pill--green">
+                <span className="pta-metric-label">You Keep</span>
+                <span className="pta-metric-value">₹{bottomLineMetrics.keptAmount}</span>
+              </div>
+              <div className="pta-metric-pill pta-metric-pill--rose">
+                <span className="pta-metric-label">Eroded</span>
+                <span className="pta-metric-value">₹{1000 - bottomLineMetrics.keptAmount}</span>
+              </div>
+            </div>
+            <p className="pta-retention-footnote">Per ₹1,000 of gross profits</p>
           </motion.div>
 
+          {/* Tax Erosion Warning */}
           {totalTaxDragRupees > 0 && (
-            <motion.div
-              className="glass-panel"
-              variants={itemVariants}
-              style={{
-                padding: '20px 24px', 
-                borderLeft: '4px solid #fb7185',
-                background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.05) 0%, rgba(15, 23, 42, 0.4) 100%)'
-              }}
-            >
-              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                <AlertCircle size={20} color="#fb7185" style={{ flexShrink: 0, marginTop: 2 }} />
-                <div>
-                  <h4 style={{ color: '#fff', fontSize: '0.92rem', fontWeight: 800, margin: '0 0 4px 0' }}>
-                    Projected Tax Erosion
-                  </h4>
-                  <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: 0, lineHeight: 1.5 }}>
-                    Taxes will reduce your total projected savings by roughly <strong style={{ color: '#fb7185' }}>{formatINR(totalTaxDragRupees)}</strong> over your investment timeline.
-                  </p>
-                </div>
+            <motion.div className="pta-card pta-erosion-card" variants={itemVariants}>
+              <div className="pta-erosion-icon-wrap">
+                <AlertCircle size={20} />
+              </div>
+              <div className="pta-erosion-content">
+                <h4 className="pta-erosion-title">Projected Tax Erosion</h4>
+                <p className="pta-erosion-text">
+                  Taxes will reduce your total projected savings by roughly <strong>{formatINR(totalTaxDragRupees)}</strong> over your investment timeline.
+                </p>
               </div>
             </motion.div>
           )}
 
-          <motion.div 
-            className="glass-panel" 
-            variants={itemVariants}
-            style={{ padding: '24px' }}
-          >
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '0.82rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Info size={14} color="#38bdf8" /> Advisory Actions
+          {/* Advisory Actions */}
+          <motion.div className="pta-card pta-advisory-card" variants={itemVariants}>
+            <h3 className="pta-advisory-header">
+              <Zap size={15} className="pta-advisory-icon" />
+              Advisory Actions
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div className="pta-advisory-list">
               {actionableInsights.map((insight, idx) => (
-                <div key={idx} className="insight-list-item">
-                  <div style={{ marginTop: 2 }}>{insight.icon}</div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 700, color: '#f8fafc' }}>
-                      {insight.title}
-                    </h4>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: '#64748b', lineHeight: 1.45 }}>
-                      {insight.body}
-                    </p>
+                <motion.div
+                  key={idx}
+                  className={`pta-advisory-item pta-advisory-item--${insight.color}`}
+                  whileHover={{ x: 4, scale: 1.005 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                  <div className={`pta-advisory-item-icon pta-advisory-item-icon--${insight.color}`}>
+                    {insight.icon}
                   </div>
-                </div>
+                  <div className="pta-advisory-item-body">
+                    <h4 className="pta-advisory-item-title">{insight.title}</h4>
+                    <p className="pta-advisory-item-desc">{insight.body}</p>
+                  </div>
+                  <ArrowRight size={14} className="pta-advisory-arrow" />
+                </motion.div>
               ))}
             </div>
           </motion.div>
